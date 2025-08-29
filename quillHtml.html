@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quill – Friendly UI + Solid Tooltips</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --border: #e5e9f2;
+      --shadow: 0 10px 30px rgba(12, 20, 33, 0.07);
+      --radius: 12px;
+      --muted: #6b7280;
+    }
+    body { margin: 0; background: var(--bg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 28px; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .title { margin: 0; font-size: 18px; }
+    .toolbar { background: #fff; }
+    .ql-toolbar.ql-snow {
+      border: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+    }
+    .ql-toolbar .ql-formats { margin-right: 6px; }
+    .ql-toolbar button, .ql-toolbar .ql-picker { border-radius: 8px; margin: 2px; transition: background .15s ease; }
+    .ql-toolbar button:hover, .ql-toolbar .ql-picker:hover { background: #f2f5f9; }
+    .ql-container.ql-snow { border: none; }
+    #editor { min-height: 360px; padding: 16px; }
+
+    /* Status bar */
+    .status { border-top: 1px solid var(--border); padding: 10px 14px; color: var(--muted); display:flex; justify-content:space-between; }
+
+    /* Tooltip (single global) */
+    .ui-tooltip {
+      position: fixed;
+      z-index: 99999;
+      pointer-events: none;
+      background: #111827;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.2;
+      opacity: 0;
+      transform: translateY(6px) scale(.98);
+      transition: opacity .12s ease, transform .12s ease;
+      white-space: nowrap;
+    }
+    .ui-tooltip.visible { opacity: .98; transform: translateY(0) scale(1); }
+    .ui-tooltip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+    }
+    /* Arrow when above target */
+    .ui-tooltip[data-pos="above"]::after {
+      bottom: -12px;
+      border-top-color: #111827;
+    }
+    /* Arrow when below target */
+    .ui-tooltip[data-pos="below"]::after {
+      top: -12px;
+      border-bottom-color: #111827;
+    }
+
+    /* Ensure nothing clips tooltips near toolbar */
+    .ql-toolbar, .ql-toolbar * { overflow: visible !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <h3 class="title">Rich Text Editor</h3>
+        <div style="font-size:13px;color:var(--muted)">Hover or focus toolbar items to see tips</div>
+      </div>
+
+      <!-- Toolbar -->
+      <div id="toolbar" class="toolbar">
+        <span class="ql-formats">
+          <select class="ql-font" data-tooltip="Font family"></select>
+          <select class="ql-size" data-tooltip="Text size"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-bold" data-tooltip="Bold"></button>
+          <button class="ql-italic" data-tooltip="Italic"></button>
+          <button class="ql-underline" data-tooltip="Underline"></button>
+          <button class="ql-strike" data-tooltip="Strikethrough"></button>
+        </span>
+        <span class="ql-formats">
+          <select class="ql-color" data-tooltip="Text color"></select>
+          <select class="ql-background" data-tooltip="Highlight color"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-script" value="super" data-tooltip="Superscript"></button>
+          <button class="ql-script" value="sub" data-tooltip="Subscript"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-header" value="1" data-tooltip="Heading 1"></button>
+          <button class="ql-header" value="2" data-tooltip="Heading 2"></button>
+          <button class="ql-blockquote" data-tooltip="Blockquote"></button>
+          <button class="ql-code-block" data-tooltip="Code block"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-list" value="ordered" data-tooltip="Numbered list"></button>
+          <button class="ql-list" value="bullet" data-tooltip="Bulleted list"></button>
+          <button class="ql-indent" value="-1" data-tooltip="Decrease indent"></button>
+          <button class="ql-indent" value="+1" data-tooltip="Increase indent"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-direction" value="rtl" data-tooltip="Right-to-left"></button>
+          <select class="ql-align" data-tooltip="Align"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-link" data-tooltip="Insert link"></button>
+          <button class="ql-image" data-tooltip="Insert image"></button>
+          <button class="ql-video" data-tooltip="Insert video"></button>
+          <button class="ql-formula" data-tooltip="Insert formula"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-clean" data-tooltip="Clear formatting"></button>
+        </span>
+      </div>
+
+      <!-- Editor -->
+      <div id="editor"></div>
+
+      <div class="status">
+        <div id="wc">Words: 0</div>
+        <div>Tip: <kbd>Ctrl/Cmd</kbd>+<kbd>B</kbd> for bold</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="ui-tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script>
+    // --- Init Quill with your full module set
+    const quill = new Quill('#editor', {
+      bounds: '.card',
+      theme: 'snow',
+      modules: {
+        formula: true,
+        syntax: true,
+        toolbar: '#toolbar'
+      },
+      placeholder: 'Start typing…'
+    });
+
+    // --- Word counter
+    const wc = document.getElementById('wc');
+    const count = () => {
+      const t = quill.getText().trim();
+      wc.textContent = 'Words: ' + (t ? t.split(/\s+/).length : 0);
+    };
+    quill.on('text-change', count); count();
+
+    // --- Robust tooltips: single global element attached to body
+    const toolbarEl = document.getElementById('toolbar');
+    const tip = document.getElementById('tooltip');
+
+    // For Quill pickers, move tooltip label from hidden <select> to visible .ql-picker-label
+    function syncPickerTooltips() {
+      toolbarEl.querySelectorAll('select[data-tooltip]').forEach(sel => {
+        const cls = Array.from(sel.classList).find(c => c.startsWith('ql-'));
+        const picker = sel.parentElement.querySelector('.ql-picker.' + cls);
+        const label = picker && picker.querySelector('.ql-picker-label');
+        if (label && !label.dataset.tooltip) {
+          label.setAttribute('data-tooltip', sel.dataset.tooltip);
+          label.setAttribute('tabindex', '0'); // focusable for keyboard tips
+          // Optional: hide native title if any
+          sel.removeAttribute('title');
+        }
+      });
+    }
+    // Run after Quill transforms selects
+    syncPickerTooltips();
+
+    // Helper to find the closest element that has data-tooltip
+    function getTippedTarget(el) {
+      return el.closest('[data-tooltip], .ql-picker-label');
+    }
+
+    function showTip(target) {
+      const text = target.getAttribute('data-tooltip');
+      if (!text) return;
+      tip.textContent = text;
+      tip.setAttribute('aria-hidden', 'false');
+      tip.classList.add('visible');
+
+      const r = target.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+
+      // Prefer above; if not enough space, place below
+      const aboveY = r.top - 10 - tipRect.height;
+      const belowY = r.bottom + 10;
+      const placeAbove = aboveY >= 8;
+
+      const y = placeAbove ? aboveY : belowY;
+      const x = Math.min(
+        Math.max(r.left + r.width / 2 - tipRect.width / 2, 8),
+        window.innerWidth - tipRect.width - 8
+      );
+
+      tip.style.top = `${y}px`;
+      tip.style.left = `${x}px`;
+      tip.dataset.pos = placeAbove ? 'above' : 'below';
+    }
+    function hideTip() {
+      tip.classList.remove('visible');
+      tip.setAttribute('aria-hidden', 'true');
+    }
+
+    // Event delegation for hover + keyboard focus
+    toolbarEl.addEventListener('mouseover', e => {
+      const t = getTippedTarget(e.target);
+      if (t) showTip(t);
+    });
+    toolbarEl.addEventListener('mouseout', e => {
+      const to = e.relatedTarget;
+      if (!to || !toolbarEl.contains(to)) hideTip();
+    });
+    toolbarEl.addEventListener('focusin', e => {
+      const t = getTippedTarget(e.target);
+      if (t) showTip(t);
+    });
+    toolbarEl.addEventListener('focusout', e => {
+      hideTip();
+    });
+
+    // Reposition on window resize/scroll
+    window.addEventListener('scroll', hideTip, true);
+    window.addEventListener('resize', hideTip);
+
+    // Optional: set default titles for common buttons if you didn't add data-tooltip
+    const defaults = new Map([
+      ['.ql-bold','Bold'],['.ql-italic','Italic'],['.ql-underline','Underline'],['.ql-strike','Strikethrough'],
+      ['.ql-list[value="ordered"]','Numbered list'],['.ql-list[value="bullet"]','Bulleted list'],
+      ['.ql-indent[value="-1"]','Decrease indent'],['.ql-indent[value="+1"]','Increase indent'],
+      ['.ql-code-block','Code block'],['.ql-blockquote','Blockquote'],
+      ['.ql-link','Insert link'],['.ql-image','Insert image'],['.ql-video','Insert video'],
+      ['.ql-formula','Insert formula'],['.ql-clean','Clear formatting']
+    ]);
+    defaults.forEach((label, selector) => {
+      const el = toolbarEl.querySelector(selector);
+      if (el && !el.getAttribute('data-tooltip')) el.setAttribute('data-tooltip', label);
+    });
+  </script>
+</body>
+</html>
