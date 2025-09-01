@@ -22,16 +22,16 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 .ql-toolbar .ql-picker-options{border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
 .ql-toolbar button svg{width:16px;height:16px}
 .ql-container.ql-snow{border:none;border-radius:0 0 14px 14px;box-shadow: inset 0 0 0 1px #eee}
-.ql-editor{min-height:540px;padding:28px 32px;font-size:17px;line-height:1.8;color:var(--text);background:#fff;border-radius:0 0 14px 14px;position:relative}
+.ql-editor{min-height:540px;font-size:17px;line-height:1.8;color:var(--text);background:#fff;border-radius:0 0 14px 14px;position:relative}
 .ql-editor.ql-blank::before{color:#a3aab7;font-style:italic}
-.ql-editor img,.ql-editor .ql-video-custom{max-width:100%;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin:1rem auto;display:block}
+.ql-editor img,.ql-editor .ql-video-custom{border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin:1rem auto;display:block}
 .video-resize-handle{width:12px;height:12px;background:#2196f3;position:absolute;right:0;bottom:0;cursor:nwse-resize;z-index:10;border-radius:3px}
 .ql-snow .ql-table-better{align-items:center;padding:6px 10px;font-size:14px;border-radius:6px}
 #char-count{position:absolute;bottom:12px;right:16px;background:rgba(0,0,0,0.05);color:#555;padding:4px 10px;border-radius:12px;font-size:13px;pointer-events:none}
 .ql-custom-tooltip{position:fixed;pointer-events:none;background:rgba(20,20,20,0.95);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;transform:translateY(-8px);transition:opacity .12s ease, transform .12s ease;opacity:0;z-index:9999;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.25)}
 .ql-custom-tooltip.visible{opacity:1;transform:translateY(0)}
-.ql-figure,.ql-video-figure{display:inline-block;margin:1rem auto;max-width:100%;vertical-align:top;box-sizing:border-box}
-.ql-figure img,.ql-video-figure video{display:block;width:auto;max-width:100%;height:auto;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.ql-figure,.ql-video-figure{display:inline-block;margin:1rem auto;vertical-align:top;box-sizing:border-box}
+.ql-figure img,.ql-video-figure video{display:block;width:auto;height:auto;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
 .ql-figure figcaption,.ql-video-figure figcaption{display:block;width:100%;box-sizing:border-box;margin-top:8px;text-align:center;padding:6px 10px;min-height:20px;font-size:13px;color:#556;border-radius:8px;background:rgba(0,0,0,0.02)}
 .ql-figure figcaption:focus,.ql-video-figure figcaption:focus{box-shadow:0 0 0 3px rgba(66,153,225,0.15);outline:none}
 .quill-modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.45);display:none;align-items:center;justify-content:center;z-index:11000}
@@ -50,6 +50,12 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 @media (max-width:520px){.quill-modal{padding:12px}.quill-modal .preview{height:160px}}
 .editor-card.drag-over{outline:3px dashed rgba(30,144,255,0.22);box-shadow:0 12px 36px rgba(20,50,120,0.06)}
 .ql-editor.drag-target{background-image:linear-gradient(90deg,rgba(30,144,255,0.03),rgba(30,144,255,0.01))}
+.ql-hr {
+  box-sizing: content-box;
+  height: 0;
+  border: 0;
+  border-top: 1px solid #DFE3E7;
+}
 </style>
 </head>
 <body>
@@ -111,11 +117,46 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 const Icons = Quill.import('ui/icons');
 Icons['undo'] = `<svg viewBox="0 0 24 24"><path d="M7 7v4H3M3 11a9 9 0 1 1 3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 Icons['redo'] = `<svg viewBox="0 0 24 24"><path d="M17 7v4h4M21 11a9 9 0 1 0-3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+Icons['hr'] = `<svg viewBox="0 0 24 24" width="16" height="16">
+  <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
 if (window.QuillTableBetter) Quill.register({ 'modules/table-better': QuillTableBetter }, true);
 if (window.QuillResizeModule) {
   Quill.register('modules/imageResize', QuillResizeModule);
   Quill.register('modules/videoResize', QuillResizeModule);
 }
+
+(function patchResizePlugin() {
+  if (!window.QuillResizeModule || !window.QuillResizeModule.ResizePlugin) return;
+
+  const RP = window.QuillResizeModule.ResizePlugin.prototype;
+
+  // Patch the broken 'destory' method
+  if (RP.destory) {
+    console.warn("Patching ResizePlugin.destory -> destroy");
+    RP.destroy = function () {
+      try {
+        if (this.resizer && this.container && this.container.contains(this.resizer)) {
+          this.container.removeChild(this.resizer);
+        }
+      } catch (err) {
+        console.warn("ResizePlugin.destroy: ignored error", err);
+      }
+      window.removeEventListener("mouseup", this.endResize);
+      window.removeEventListener("mousemove", this.resizing);
+      this.resizer = null;
+    };
+  }
+
+  // Also override the original 'destory' to call the safe 'destroy'
+  RP.destory = function () {
+    console.warn("Calling patched destroy instead of destory");
+    this.destroy();
+  };
+
+  // Patch finished
+})();
 
 /* ---------------------------
    Blots: Figure (image) & VideoFigure
@@ -156,45 +197,55 @@ function attachMediaResizeSync(mediaEl, figureEl) {
   requestAnimationFrame(sync);
 }
 
+class HorizontalLineBlot extends BlockEmbed {
+  static create() {
+    const node = super.create();
+    node.setAttribute('contenteditable', false);
+    return node;
+  }
+}
+HorizontalLineBlot.blotName = 'hr';
+HorizontalLineBlot.tagName = 'hr';
+HorizontalLineBlot.className = 'ql-hr';
+Quill.register(HorizontalLineBlot);
 class FigureBlot extends BlockEmbed {
   static create(value) {
     const node = super.create();
+    node.setAttribute('contenteditable', false);
+
     const url = typeof value === 'string' ? value : (value && value.url) || '';
     const captionText = (value && value.caption) || '';
+    const align = value && value.align;
+
+    if (align) node.style.textAlign = align; // apply alignment
 
     const img = document.createElement('img');
     img.setAttribute('src', url);
     img.setAttribute('alt', captionText || 'Image');
 
-    const figcaption = document.createElement('figcaption');
-    figcaption.setAttribute('contenteditable', 'true');
-    figcaption.className = 'ql-image-caption';
-    figcaption.innerText = captionText;
-
-    node.innerHTML = '';
     node.appendChild(img);
-    node.appendChild(figcaption);
-
-    figcaption.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        try {
-          const blot = Quill.find(node);
-          const idx = window.__quill.getIndex(blot);
-          const len = blot.length ? blot.length() : 1;
-          window.__quill.setSelection(idx + len, 0, Quill.sources.SILENT);
-        } catch (err) {}
-      }
-    });
-
-    attachMediaResizeSync(img, node);
-
+    if(value.caption){
+      const figcaption = document.createElement('figcaption');
+      figcaption.setAttribute('contenteditable', 'true');
+      figcaption.className = 'ql-image-caption';
+      figcaption.innerText = captionText;
+      node.appendChild(figcaption);
+      attachMediaResizeSync(img, node);
+    }
     return node;
   }
+
+  static formats(node) {
+    // This tells Quill what formats this blot supports
+    const align = node.style.textAlign;
+    return align ? { align } : {};
+  }
+
   static value(node) {
     const img = node.querySelector('img');
     const caption = node.querySelector('figcaption');
-    return { url: img ? img.getAttribute('src') : '', caption: caption ? caption.innerText : '' };
+    const align = node.style.textAlign || '';
+    return { url: img ? img.getAttribute('src') : '', caption: caption ? caption.innerText : '', align };
   }
 }
 FigureBlot.blotName = 'figure';
@@ -207,6 +258,9 @@ class VideoFigureBlot extends BlockEmbed {
     const node = super.create();
     const url = typeof value === 'string' ? value : (value && value.url) || '';
     const captionText = (value && value.caption) || '';
+    const align = value && value.align;
+
+    if (align) node.style.textAlign = align;
 
     const video = document.createElement('video');
     video.setAttribute('controls', '');
@@ -218,35 +272,45 @@ class VideoFigureBlot extends BlockEmbed {
     figcaption.className = 'ql-video-caption';
     figcaption.innerText = captionText;
 
-    node.innerHTML = '';
     node.appendChild(video);
     node.appendChild(figcaption);
-
-    figcaption.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        try {
-          const blot = Quill.find(node);
-          const idx = window.__quill.getIndex(blot);
-          const len = blot.length ? blot.length() : 1;
-          window.__quill.setSelection(idx + len, 0, Quill.sources.SILENT);
-        } catch (err) {}
-      }
-    });
-
     attachMediaResizeSync(video, node);
     return node;
   }
+
+  static formats(node) {
+    const align = node.style.textAlign;
+    return align ? { align } : {};
+  }
+
   static value(node) {
     const vid = node.querySelector('video');
     const caption = node.querySelector('figcaption');
-    return { url: vid ? vid.getAttribute('src') : '', caption: caption ? caption.innerText : '' };
+    const align = node.style.textAlign || '';
+    return { url: vid ? vid.getAttribute('src') : '', caption: caption ? caption.innerText : '', align };
   }
 }
 VideoFigureBlot.blotName = 'videoFigure';
 VideoFigureBlot.tagName = 'div';
 VideoFigureBlot.className = 'ql-video-figure';
 Quill.register(VideoFigureBlot);
+
+FigureBlot.prototype.format = function(name, value) {
+  if (name === 'align') {
+    this.domNode.style.textAlign = value || '';
+  } else {
+    // call the original format function on BlockEmbed
+    BlockEmbed.prototype.format.call(this, name, value);
+  }
+};
+
+VideoFigureBlot.prototype.format = function(name, value) {
+  if (name === 'align') {
+    this.domNode.style.textAlign = value || '';
+  } else {
+    BlockEmbed.prototype.format.call(this, name, value);
+  }
+};
 
 /* ---------------------------
    Initialize Quill editor
@@ -268,7 +332,7 @@ const editor = new Quill('#root', {
         [{ 'size': ['small', false, 'large', 'huge'] }],
         [{ 'color': [] }, { 'background': [] }],
         [{ 'font': [] }],
-        ['link','image','video','formula'],
+        ['link','image','video','hr'],
         ['table-better'],
         ['clean'],
         ['undo','redo']
@@ -426,15 +490,21 @@ function wireModal(opts) {
   btnInsert.addEventListener('click', () => {
     const url = urlInput.value.trim(); const finalSrc = selectedDataUrl || url; const caption = captionInput.value.trim();
     if (!finalSrc) { preview.innerHTML = '<span style="color:#cc0000">Please provide a URL or upload a file.</span>'; urlInput.focus(); return; }
+    const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+    // Grab the current alignment at the cursor
+    const currentFormat = editor.getFormat(range);
+    const align = currentFormat.align || '';
     const index = Math.max(0, lastSelectionIndex);
     if (opts.type === 'image') {
-      editor.insertEmbed(index, 'figure', { url: finalSrc, caption }, Quill.sources.USER);
-    } else {
-      editor.insertEmbed(index, 'videoFigure', { url: finalSrc, caption }, Quill.sources.USER);
-      if (finalSrc.startsWith('blob:')) blobUrlTracker.add(finalSrc);
-    }
-    editor.insertText(index + 1, '\n', Quill.sources.SILENT);
-    editor.setSelection(index + 2, 0, Quill.sources.SILENT);
+    editor.insertEmbed(range.index, 'figure', { url: finalSrc, caption, align }, Quill.sources.USER);
+  } else {
+    editor.insertEmbed(range.index, 'videoFigure', { url: finalSrc, caption, align }, Quill.sources.USER);
+    if (finalSrc.startsWith('blob:')) blobUrlTracker.add(finalSrc);
+  }
+    // Insert a newline after the media
+    editor.insertText(range.index + 1, '\n', Quill.sources.SILENT);
+    editor.setSelection(range.index + 2, 0, Quill.sources.SILENT);
+
     attachObserversToAllFigures();
     markInserted(normalizeUrl(finalSrc));
     closeModal();
@@ -446,7 +516,17 @@ function wireModal(opts) {
 const imageModal = wireModal({ overlayId: 'quill-image-modal-overlay', urlId: 'quill-image-url', fileId: 'quill-image-file', captionId: 'quill-image-caption', previewId: 'quill-image-preview', cancelId: 'quill-image-cancel', insertId: 'quill-image-insert', type: 'image' });
 const videoModal = wireModal({ overlayId: 'quill-video-modal-overlay', urlId: 'quill-video-url', fileId: 'quill-video-file', captionId: 'quill-video-caption', previewId: 'quill-video-preview', cancelId: 'quill-video-cancel', insertId: 'quill-video-insert', type: 'video' });
 
-const toolbar = editor.getModule('toolbar'); if (toolbar) { toolbar.addHandler('image', () => imageModal.open()); toolbar.addHandler('video', () => videoModal.open()); }
+const toolbar = editor.getModule('toolbar'); 
+if (toolbar) { 
+  toolbar.addHandler('image', () => imageModal.open()); 
+  toolbar.addHandler('video', () => videoModal.open());
+  toolbar.addHandler('hr', () => {
+  const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+  editor.insertEmbed(range.index, 'hr', true, Quill.sources.USER);
+  editor.insertText(range.index + 1, '\n', Quill.sources.SILENT);
+  editor.setSelection(range.index + 2, 0, Quill.sources.SILENT);
+});
+ }
 
 /* ---------------------------
    Tooltip system
