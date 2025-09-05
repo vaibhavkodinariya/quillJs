@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quill — Image + Caption (Fixed: nativeVideo)</title>
+<title>Quill — Image + Caption (Custom Resizer Only)</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css">
@@ -31,12 +31,12 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 .ql-custom-tooltip{position:fixed;pointer-events:none;background:rgba(20,20,20,0.95);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;transform:translateY(-8px);transition:opacity .12s ease, transform .12s ease;opacity:0;z-index:9999;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.25)}
 .ql-custom-tooltip.visible{opacity:1;transform:translateY(0)}
 .ql-caption {
-  display: block;           /* block so width applies reliably */
-  margin: 6px auto 0;       /* center caption under the image/video */
+  display: block;
+  margin: 6px auto 0;
   box-sizing: border-box;
-  max-width: 100%;          /* never overflow container */
-  white-space: normal;      /* allow wrapping */
-  text-align: center;       /* keep caption text centered */
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
 }
 .ql-caption:focus{outline:none;box-shadow:0 0 0 3px rgba(66,153,225,0.12)}
 .quill-modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.45);display:none;align-items:center;justify-content:center;z-index:11000}
@@ -56,6 +56,43 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 .editor-card.drag-over{outline:3px dashed rgba(30,144,255,0.22);box-shadow:0 12px 36px rgba(20,50,120,0.06)}
 .ql-editor.drag-target{background-image:linear-gradient(90deg,rgba(30,144,255,0.03),rgba(30,144,255,0.01))}
 .ql-hr { box-sizing: content-box; height: 0; border: 0; border-top: 1px solid #DFE3E7; }
+
+/* custom figure wrapper styling & toolbar */
+figure.custom-figure {
+  display: block;
+  position: relative;
+  margin: 12px 0;
+  padding: 6px;
+  text-align: center;
+  vertical-align: top;
+  box-sizing: border-box;
+  max-width: 100%;
+  border-radius: 6px;
+  width: 320px;
+}
+figure.custom-figure img,
+figure.custom-figure video { display:block; width:100%; height:auto; margin:0 auto; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
+figure.custom-figure .fig-resize-handle { position:absolute; right:8px; bottom:8px; width:14px; height:14px; background:#fff; border:1px solid #888; cursor:se-resize; border-radius:3px; z-index:40; }
+figure.custom-figure .fig-resize-handle:after { content:""; display:block; width:8px; height:8px; margin:2px; border-right:2px solid #666; border-bottom:2px solid #666; }
+.figure-toolbar {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 4px;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  z-index: 60;
+  font-size: 13px;
+}
+.figure-toolbar button { background: transparent; border: 0; padding: 6px 8px; cursor: pointer; border-radius:4px; }
+.figure-toolbar button:hover { background:#f2f6fb; }
+figure.align-left { margin-left: 0; margin-right: auto; text-align: left; }
+figure.align-center { margin-left: auto; margin-right: auto; text-align: center; }
+figure.align-right { margin-left: auto; margin-right: 0; text-align: right; }
 </style>
 </head>
 <body>
@@ -85,7 +122,7 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
   </div>
 </div>
 
-<!-- Video modal (now includes alignment) -->
+<!-- Video modal -->
 <div id="quill-video-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="quill-modal" role="document" aria-labelledby="quill-video-modal-title">
     <h3 id="quill-video-modal-title">Insert video (optional caption)</h3>
@@ -108,11 +145,10 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/scrapooo/quill-resize-module@1.0.2/dist/quill-resize-module.js"></script>
 
 <script>
 /* ---------------------------
-   Setup / Register modules
+   Setup / Register modules (NO external resize module)
    --------------------------- */
 const Icons = Quill.import('ui/icons');
 Icons['undo'] = `<svg viewBox="0 0 24 24"><path d="M7 7v4H3M3 11a9 9 0 1 1 3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -122,31 +158,6 @@ Icons['hr'] = `<svg viewBox="0 0 24 24" width="16" height="16">
 </svg>`;
 
 if (window.QuillTableBetter) Quill.register({ 'modules/table-better': QuillTableBetter }, true);
-if (window.QuillResizeModule) {
-  Quill.register('modules/imageResize', QuillResizeModule);
-  Quill.register('modules/videoResize', QuillResizeModule);
-}
-
-/* Patch ResizePlugin.destory -> destroy (safety) */
-(function patchResizePlugin() {
-  if (!window.QuillResizeModule || !window.QuillResizeModule.ResizePlugin) return;
-  const RP = window.QuillResizeModule.ResizePlugin.prototype;
-  if (RP.destory) {
-    RP.destroy = function () {
-      try {
-        if (this.resizer && this.container && this.container.contains(this.resizer)) {
-          this.container.removeChild(this.resizer);
-        }
-      } catch (err) {}
-      window.removeEventListener("mouseup", this.endResize);
-      window.removeEventListener("mousemove", this.resizing);
-      this.resizer = null;
-    };
-  }
-  RP.destory = function () {
-    this.destroy();
-  };
-})();
 
 /* ---------------------------
    Horizontal rule blot
@@ -185,15 +196,13 @@ CaptionBlot.tagName = 'div';
 Quill.register(CaptionBlot);
 
 /* ---------------------------
-   NativeVideoBlot — simple native <video> (no wrapper)
+   NativeVideoBlot
    --------------------------- */
 class NativeVideoBlot extends BlockEmbed {
   static create(value) {
     const node = super.create();
     node.setAttribute('contenteditable', false);
-
     const url = typeof value === 'string' ? value : (value && value.url) || '';
-
     const video = document.createElement('video');
     video.src = url;
     video.controls = true;
@@ -201,12 +210,9 @@ class NativeVideoBlot extends BlockEmbed {
     video.style.display = 'block';
     video.style.maxWidth = '100%';
     video.style.margin = '0 auto';
-
     node.appendChild(video);
-
     return node;
   }
-
   static value(node) {
     const v = node.querySelector('video');
     return v ? v.getAttribute('src') : '';
@@ -218,7 +224,66 @@ NativeVideoBlot.className = 'ql-native-video';
 Quill.register(NativeVideoBlot);
 
 /* ---------------------------
-   Initialize Quill editor
+   FigureBlot (image/video + editable caption) — custom
+   --------------------------- */
+function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
+
+class FigureBlot extends BlockEmbed {
+  static blotName = 'figure';
+  static tagName = 'figure';
+
+  static create(value = {}) {
+    const node = super.create();
+    node.classList.add('custom-figure');
+    node.setAttribute('contenteditable', 'false');
+
+    const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
+    if (type === 'video') {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      const source = document.createElement('source');
+      source.src = value.url || '';
+      video.appendChild(source);
+      node.appendChild(video);
+    } else {
+      const img = document.createElement('img');
+      img.src = value.url || '';
+      img.alt = value.caption || '';
+      img.setAttribute('draggable', 'false');
+      node.appendChild(img);
+    }
+
+    const caption = document.createElement('figcaption');
+    caption.setAttribute('contenteditable', 'true');
+    caption.className = 'ql-caption';
+    caption.innerText = value.caption || '';
+    node.appendChild(caption);
+
+    if (value.width) node.style.width = value.width;
+    if (value.align) {
+      node.classList.remove('align-left','align-center','align-right');
+      node.classList.add('align-' + value.align);
+    }
+
+    return node;
+  }
+
+  static value(node) {
+    const media = node.querySelector('img,video');
+    const caption = node.querySelector('figcaption');
+    const url = media ? (media.tagName.toLowerCase() === 'video' ? (media.querySelector('source')?.getAttribute('src') || '') : media.getAttribute('src')) : '';
+    const type = media ? media.tagName.toLowerCase() : 'image';
+    const width = node.style.width || '';
+    const align = (node.classList.contains('align-left') && 'left') ||
+                  (node.classList.contains('align-right') && 'right') || 'center';
+    return { url, type, caption: (caption ? caption.innerText : ''), width, align };
+  }
+}
+Quill.register(FigureBlot);
+
+/* ---------------------------
+   Initialize Quill editor (no imageResize/videoResize modules)
    --------------------------- */
 const editor = new Quill('#root', {
   theme: 'snow',
@@ -249,13 +314,11 @@ const editor = new Quill('#root', {
     },
     history: { delay: 1000, maxStack: 500, userOnly: true },
     'table-better': { toolbarTable: true, menus: ['column','row','merge','table','cell','wrap','copy','delete'] },
-    keyboard: { bindings: window.QuillTableBetter ? QuillTableBetter.keyboardBindings : {} },
-    imageResize: { displaySize: true },
-    videoResize: {}
+    keyboard: { bindings: window.QuillTableBetter ? QuillTableBetter.keyboardBindings : {} }
   }
 });
 
-window.__quill = editor; // debugging
+window.__quill = editor;
 
 /* ---------------------------
    Character count
@@ -269,18 +332,14 @@ updateCharCount();
 editor.on('text-change', updateCharCount);
 
 /* ---------------------------
-   Helpers & dedupe store
+   Helpers & dedupe store & url utility
    --------------------------- */
 const recentInserts = new Map();
 const RECENT_TTL = 3000;
 function markInserted(key) { if (!key) return; recentInserts.set(key, Date.now()); setTimeout(() => recentInserts.delete(key), RECENT_TTL + 200); }
 function wasRecentlyInserted(key) { if (!key) return false; const t = recentInserts.get(key); return t && (Date.now() - t) < RECENT_TTL; }
-
-function normalizeUrl(u) {
-  try { const url = new URL(u, location.href); url.hash = ''; return url.toString(); } catch (err) { return String(u).trim(); }
-}
+function normalizeUrl(u) { try { const url = new URL(u, location.href); url.hash = ''; return url.toString(); } catch (err) { return String(u).trim(); } }
 function urlLooksLikeImage(url) { return /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url); }
-function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
 
 /* ---------------------------
    Blob tracker and cleanup
@@ -306,34 +365,36 @@ const domCleanupObserver = new MutationObserver((mutations) => {
 domCleanupObserver.observe(document.querySelector('#root'), { childList: true, subtree: true });
 
 /* ---------------------------
-   Clipboard matchers (image + nativeVideo)
+   Clipboard matchers -> insert FigureBlot
    --------------------------- */
 try {
   const Clipboard = editor.getModule('clipboard');
   if (Clipboard && Clipboard.addMatcher) {
     const Delta = Quill.import('delta');
+
     Clipboard.addMatcher('IMG', (node, delta) => {
       const src = node.getAttribute('src') || '';
       if (!src) return delta;
       if (wasRecentlyInserted(normalizeUrl(src))) return new Delta();
       markInserted(normalizeUrl(src));
-      return new Delta().insert({ image: src }).insert('\n');
+      return new Delta().insert({ figure: { url: src, type: 'image', caption: '' } }).insert('\n');
     });
+
     Clipboard.addMatcher('VIDEO', (node, delta) => {
-      // prefer <video src> or <video><source src=...>
       const src = node.getAttribute('src') || (node.querySelector('source') && node.querySelector('source').getAttribute('src')) || '';
       if (!src) return delta;
       if (wasRecentlyInserted(normalizeUrl(src))) return new Delta();
       markInserted(normalizeUrl(src));
-      // insert our nativeVideo embed (not the fragile wrapper)
-      return new Delta().insert({ nativeVideo: src }).insert('\n');
+      return new Delta().insert({ figure: { url: src, type: 'video', caption: '' } }).insert('\n');
     });
   }
 } catch (e) { /* ignore */ }
 
 /* ---------------------------
-   attachMediaResizeSync
-   - works for image or video elements. For native media we attach to the element itself.
+   attachMediaResizeSync (uses ResizeObserver)
+   --------------------------- */
+/* ---------------------------
+   attachMediaResizeSync (stable, no loop)
    --------------------------- */
 function attachMediaResizeSync(mediaEl, containerEl) {
   if (!mediaEl) return;
@@ -341,17 +402,17 @@ function attachMediaResizeSync(mediaEl, containerEl) {
   if (target.__mediaResizeAttached) return;
   target.__mediaResizeAttached = true;
 
+  // Guard to avoid re-entrant updates
+  if (typeof target.__mediaResizeApplying === 'undefined') target.__mediaResizeApplying = false;
+
   const applyCaptionWidth = (widthPx) => {
     try {
       let next = mediaEl.nextSibling;
       while (next && next.nodeType !== 1) next = next.nextSibling;
       if (next && next.classList && next.classList.contains('ql-caption')) {
-        if (widthPx && widthPx > 0) {
-          next.style.width = widthPx + 'px';
-          next.style.maxWidth = '100%';
-        } else {
-          next.style.width = 'auto';
-        }
+        // keep caption flexible instead of forcing pixel sizes that can bounce
+        next.style.width = '100%';
+        next.style.maxWidth = '100%';
         next.style.marginLeft = next.style.marginRight = 'auto';
         next.style.boxSizing = 'border-box';
       }
@@ -360,26 +421,53 @@ function attachMediaResizeSync(mediaEl, containerEl) {
 
   const sync = () => {
     try {
-      const rect = mediaEl.getBoundingClientRect();
-      let widthPx = Math.round(rect.width);
+      if (target.__mediaResizeApplying) return;
+      // Measure the container (figure) when available — more stable than measuring the media
+      const rectSource = (target.getBoundingClientRect && target.getBoundingClientRect()) ||
+                         (mediaEl.getBoundingClientRect && mediaEl.getBoundingClientRect()) || { width: 0 };
+      let widthPx = Math.round(rectSource.width || 0);
+
+      // If computed style width is available and more reliable, try fallback
       if (!widthPx || widthPx === 0) {
         const cs = window.getComputedStyle(mediaEl);
         widthPx = parseInt(cs.width, 10) || 0;
       }
-      if (widthPx > 0) {
+
+      // If nothing meaningful, set auto and bail
+      if (!widthPx || widthPx <= 0) {
+        if (target.style.width && target.style.width !== 'auto') {
+          target.style.width = 'auto';
+        }
+        applyCaptionWidth(widthPx);
+        return;
+      }
+
+      // Avoid writing the same value over & over (prevents observer feedback loops)
+      const current = parseInt((target.style.width || '').replace('px', ''), 10) || 0;
+      if (current === widthPx) {
+        applyCaptionWidth(widthPx);
+        return;
+      }
+
+      // Apply with a guard so ResizeObserver callbacks caused by this change don't re-enter
+      target.__mediaResizeApplying = true;
+      try {
         target.style.width = widthPx + 'px';
         target.style.maxWidth = '100%';
-      } else {
-        target.style.width = 'auto';
+      } finally {
+        // schedule clearing the guard next tick so other observers can run afterwards
+        requestAnimationFrame(() => { target.__mediaResizeApplying = false; });
       }
+
       applyCaptionWidth(widthPx);
     } catch (err) { /* ignore */ }
   };
 
   const ro = new ResizeObserver(sync);
-  try { ro.observe(mediaEl); } catch (e) {}
-  const parent = mediaEl.parentElement;
-  if (parent && parent !== target) { try { ro.observe(parent); } catch (e) {} }
+  try { ro.observe(target); } catch (e) {}
+  // still safe to observe media too (some browsers change media size independently),
+  // but prefer observing the container first; observe media as a secondary target.
+  try { if (mediaEl !== target) ro.observe(mediaEl); } catch (e) {}
 
   const mo = new MutationObserver(sync);
   try { mo.observe(mediaEl, { attributes: true, attributeFilter: ['style', 'class', 'width', 'src'] }); } catch (e) {}
@@ -387,29 +475,65 @@ function attachMediaResizeSync(mediaEl, containerEl) {
   target.__mediaResizeObserver = ro;
   target.__mediaMutationObserver = mo;
 
+  // initial sync
   requestAnimationFrame(sync);
 }
 
-/* Attach observers to images and native videos inside editor */
+/* ---------------------------
+   Attach observers + wrap media into figure.custom-figure
+   --------------------------- */
 function attachObserversToAllFigures(root = document) {
-  (root || document).querySelectorAll('img').forEach(img => {
+  (root || document).querySelectorAll('img, video').forEach(media => {
     try {
-      if (!img.closest('#root')) return;
-      attachMediaResizeSync(img, img);
-    } catch (e) {}
+      if (!media.closest('#root')) return;
+      if (media.closest('figure.custom-figure')) {
+        attachMediaResizeSync(media, media.closest('figure.custom-figure'));
+        return;
+      }
+
+      let next = media.nextSibling;
+      while (next && next.nodeType !== 1) next = next.nextSibling;
+      const hasCaption = next && next.classList && next.classList.contains('ql-caption');
+
+      const figure = document.createElement('figure');
+      figure.className = 'custom-figure align-center';
+      figure.setAttribute('contenteditable','false');
+
+      const cs = window.getComputedStyle(media);
+      const computedWidth = parseInt(cs.width, 10);
+      if (computedWidth && computedWidth > 20) figure.style.width = computedWidth + 'px';
+
+      const parent = media.parentElement;
+      if (!parent) return;
+      parent.insertBefore(figure, media);
+      figure.appendChild(media);
+      if (hasCaption) {
+        figure.appendChild(next);
+      } else {
+        const caption = document.createElement('figcaption');
+        caption.className = 'ql-caption';
+        caption.setAttribute('contenteditable','true');
+        caption.innerText = '';
+        figure.appendChild(caption);
+      }
+
+      attachControls(figure);
+      const innerMedia = figure.querySelector('img,video');
+      if (innerMedia) attachMediaResizeSync(innerMedia, figure);
+
+    } catch (e) { /* ignore per element */ }
   });
-  (root || document).querySelectorAll('video').forEach(video => {
-    try {
-      if (!video.closest('#root')) return;
-      attachMediaResizeSync(video, video);
-    } catch (e) {}
+
+  (root || document).querySelectorAll('figure.custom-figure img, figure.custom-figure video').forEach(media => {
+    try { attachMediaResizeSync(media, media.closest('figure.custom-figure')); } catch(e) {}
   });
 }
+
 attachObserversToAllFigures();
 editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
 
 /* ---------------------------
-   Modal UI logic (image + video) — unified wireModal
+   Modal UI logic (insert FigureBlot)
    --------------------------- */
 function wireModal(opts) {
   const overlay = document.getElementById(opts.overlayId);
@@ -419,12 +543,11 @@ function wireModal(opts) {
   const preview = document.getElementById(opts.previewId);
   const btnCancel = document.getElementById(opts.cancelId);
   const btnInsert = document.getElementById(opts.insertId);
-  const alignSelect = opts.alignId ? document.getElementById(opts.alignId) : null;
 
   let selectedDataUrl = null; let lastSelectionIndex = 0;
   function openModal() {
     lastSelectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
-    urlInput.value = ''; fileInput.value = ''; captionInput.value = ''; selectedDataUrl = null; if (alignSelect) alignSelect.value = '';
+    urlInput.value = ''; fileInput.value = ''; captionInput.value = ''; selectedDataUrl = null;
     preview.innerHTML = 'Preview';
     overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(()=> urlInput.focus(), 50);
   }
@@ -448,46 +571,17 @@ function wireModal(opts) {
 
   btnInsert.addEventListener('click', () => {
     const url = urlInput.value.trim(); const finalSrc = selectedDataUrl || url; const caption = captionInput.value.trim();
-    const align = alignSelect ? (alignSelect.value || '') : '';
     if (!finalSrc) { preview.innerHTML = '<span style="color:#cc0000">Please provide a URL or upload a file.</span>'; urlInput.focus(); return; }
 
     const index = Math.max(0, lastSelectionIndex);
-
-    if (opts.type === 'image') {
-      // native image + optional caption (same flow as before)
-      editor.insertEmbed(index, 'image', finalSrc, Quill.sources.USER);
-      if (align) editor.formatLine(index, 'align', align, Quill.sources.USER);
-
-      let nextIndex = index + 1;
-      if (caption) {
-        editor.insertEmbed(nextIndex, 'caption', caption, Quill.sources.USER);
-        nextIndex = nextIndex + 1;
-      }
-      editor.insertText(nextIndex, '\n', Quill.sources.SILENT);
-      editor.setSelection(nextIndex + 1, 0, Quill.sources.SILENT);
-
-      setTimeout(() => attachObserversToAllFigures(), 60);
-      markInserted(normalizeUrl(finalSrc));
-      closeModal();
-      return;
-    } else {
-      // nativeVideo embed + optional caption (same image logic)
-      editor.insertEmbed(index, 'nativeVideo', finalSrc, Quill.sources.USER);
-      if (align) editor.formatLine(index, 'align', align, Quill.sources.USER);
-
-      let nextIndex = index + 1;
-      if (caption) {
-        editor.insertEmbed(nextIndex, 'caption', caption, Quill.sources.USER);
-        nextIndex = nextIndex + 1;
-      }
-      editor.insertText(nextIndex, '\n', Quill.sources.SILENT);
-      editor.setSelection(nextIndex + 1, 0, Quill.sources.SILENT);
-
-      setTimeout(() => attachObserversToAllFigures(), 60);
-      markInserted(normalizeUrl(finalSrc));
-      closeModal();
-      return;
-    }
+    const type = opts.type === 'video' || urlLooksLikeVideo(finalSrc) ? 'video' : 'image';
+    editor.insertEmbed(index, 'figure', { url: finalSrc, type, caption: caption || '', width: '', align: 'center' }, Quill.sources.USER);
+    editor.insertText(index + 1, '\n', Quill.sources.SILENT);
+    editor.setSelection(index + 2, 0, Quill.sources.SILENT);
+    setTimeout(() => attachObserversToAllFigures(), 60);
+    markInserted(normalizeUrl(finalSrc));
+    closeModal();
+    return;
   });
 
   return { open: openModal };
@@ -545,7 +639,7 @@ attachToolbarTooltips();
 const toolbarObserver = new MutationObserver(() => attachToolbarTooltips()); const tb = document.querySelector('.ql-toolbar'); if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
 
 /* ---------------------------
-   Drag and drop support (images + native videos)
+   Drag and drop support (images + native videos) -> inserts FigureBlot
    --------------------------- */
 const editorCard = document.querySelector('.editor-card');
 const editorRoot = editor.root;
@@ -571,23 +665,22 @@ editorRoot.addEventListener("drop", (e) => {
   const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
   if (!file) return;
 
-  // Handle image drop -> native image
   if (file.type.startsWith("image/")) {
     const reader = new FileReader();
     reader.onload = (evt) => {
-      editor.insertEmbed(range.index, "image", evt.target.result, Quill.sources.USER);
+      editor.insertEmbed(range.index, 'figure', { url: evt.target.result, type: 'image', caption: '' }, Quill.sources.USER);
       editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
       setTimeout(() => attachObserversToAllFigures(), 60);
       markInserted(normalizeUrl(evt.target.result));
     };
+    reader.readAsDataURL(file);
     return;
   }
 
-  // Handle video drop -> nativeVideo blot (supports blob:)
   if (file.type.startsWith("video/")) {
     try {
       const blobUrl = URL.createObjectURL(file);
-      editor.insertEmbed(range.index, "nativeVideo", blobUrl, Quill.sources.USER);
+      editor.insertEmbed(range.index, "figure", { url: blobUrl, type: 'video', caption: '' }, Quill.sources.USER);
       editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
       attachObserversToAllFigures();
       blobUrlTracker.add(blobUrl);
@@ -595,7 +688,7 @@ editorRoot.addEventListener("drop", (e) => {
     } catch (err) {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        editor.insertEmbed(range.index, "nativeVideo", evt.target.result, Quill.sources.USER);
+        editor.insertEmbed(range.index, "figure", { url: evt.target.result, type: 'video', caption: '' }, Quill.sources.USER);
         editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
         attachObserversToAllFigures();
         markInserted(normalizeUrl(evt.target.result));
@@ -605,6 +698,178 @@ editorRoot.addEventListener("drop", (e) => {
     return;
   }
 });
+
+/* ---------------------------
+   Controls attachment for figure (toolbar, resize handle, caption edit)
+   --------------------------- */
+function attachControls(figureEl) {
+  if (!figureEl || figureEl.__controlsAttached) return;
+  figureEl.__controlsAttached = true;
+
+  figureEl.style.position = getComputedStyle(figureEl).position === 'static' ? 'relative' : figureEl.style.position;
+  if (!figureEl.style.width) figureEl.style.width = '320px';
+
+  const handle = document.createElement('div');
+  handle.className = 'fig-resize-handle';
+  figureEl.appendChild(handle);
+
+  const toolbarEl = document.createElement('div');
+  toolbarEl.className = 'figure-toolbar';
+  toolbarEl.innerHTML = `
+    <button data-action="align-left" title="Align left">L</button>
+    <button data-action="align-center" title="Align center">C</button>
+    <button data-action="align-right" title="Align right">R</button>
+    <button data-action="edit-caption" title="Edit caption">✎</button>
+    <button data-action="remove" title="Remove">🗑</button>
+  `;
+  figureEl.appendChild(toolbarEl);
+
+  figureEl.addEventListener('click', (evt) => {
+    if (evt.target.tagName && evt.target.tagName.toLowerCase() === 'figcaption') {
+      figureEl.classList.add('selected');
+      return;
+    }
+    document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
+    figureEl.classList.add('selected');
+  });
+
+  editor.root.addEventListener('click', (e) => {
+    const el = e.target.closest && e.target.closest('figure.custom-figure');
+    if (!el) document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
+  });
+
+  toolbarEl.addEventListener('click', (ev) => {
+    const action = ev.target.closest('button')?.dataset?.action;
+    if (!action) return;
+    ev.stopPropagation();
+
+    if (action === 'remove') {
+      try {
+        const blot = Quill.find(figureEl);
+        if (blot) {
+          const idx = editor.getIndex(blot);
+          editor.deleteText(idx, 1, Quill.sources.USER);
+        } else {
+          figureEl.remove();
+        }
+      } catch (e) {
+        try { figureEl.remove(); } catch(e) {}
+      }
+    } else if (action === 'edit-caption') {
+      const caption = figureEl.querySelector('.ql-caption, figcaption');
+      if (caption) {
+        editor.disable();
+        caption.focus();
+        const range = document.createRange();
+        range.selectNodeContents(caption);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    } else if (action.startsWith('align-')) {
+      figureEl.classList.remove('align-left','align-center','align-right');
+      const alignType = action.split('-')[1];
+      if (alignType === 'center') figureEl.classList.add('align-center');
+      else if (alignType === 'left') figureEl.classList.add('align-left');
+      else if (alignType === 'right') figureEl.classList.add('align-right');
+
+      try {
+        const blot = Quill.find(figureEl);
+        if (blot) {
+          const idx = editor.getIndex(blot);
+          const val = FigureBlot.value(figureEl);
+          editor.deleteText(idx, 1, Quill.sources.SILENT);
+          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+        }
+      } catch (e) {}
+    }
+  });
+
+  const captionEl = figureEl.querySelector('.ql-caption, figcaption');
+  if (captionEl) {
+    captionEl.addEventListener('focus', (e) => {
+      e.stopPropagation();
+      figureEl.classList.add('selected');
+      try { editor.disable(); } catch(e) {}
+    });
+    captionEl.addEventListener('blur', (e) => {
+      try { editor.enable(); } catch(e) {}
+      try {
+        const blot = Quill.find(figureEl);
+        if (blot) {
+          const idx = editor.getIndex(blot);
+          const val = FigureBlot.value(figureEl);
+          editor.deleteText(idx, 1, Quill.sources.SILENT);
+          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+        }
+      } catch (err) {}
+    });
+    captionEl.addEventListener('keydown', (e) => e.stopPropagation());
+    captionEl.addEventListener('mousedown', (e) => e.stopPropagation());
+  }
+
+  // pointer-based resize
+  let pointerId = null, startX = 0, startW = 0;
+  handle.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    pointerId = ev.pointerId;
+    try { handle.setPointerCapture(pointerId); } catch (e) {}
+    startX = ev.clientX;
+    startW = figureEl.getBoundingClientRect().width;
+    figureEl.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+  });
+
+  handle.addEventListener('pointermove', (ev) => {
+    if (pointerId !== ev.pointerId) return;
+    const dx = ev.clientX - startX;
+    let newW = Math.max(80, startW + dx);
+    const editorWidth = editor.root.clientWidth;
+    newW = Math.min(newW, editorWidth - 20);
+    figureEl.style.width = newW + 'px';
+  });
+
+  handle.addEventListener('pointerup', (ev) => {
+    if (pointerId !== ev.pointerId) return;
+    try { handle.releasePointerCapture(pointerId); } catch(e){}
+    pointerId = null;
+    figureEl.classList.remove('resizing');
+    document.body.style.userSelect = '';
+    try {
+      const blot = Quill.find(figureEl);
+      if (blot) {
+        const idx = editor.getIndex(blot);
+        const val = FigureBlot.value(figureEl);
+        val.width = figureEl.style.width || '';
+        editor.deleteText(idx, 1, Quill.sources.SILENT);
+        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+      }
+    } catch (err) {}
+  });
+
+  handle.addEventListener('pointercancel', () => {
+    pointerId = null;
+    figureEl.classList.remove('resizing');
+    document.body.style.userSelect = '';
+  });
+}
+
+/* Observe editor DOM for new figure nodes */
+const mo = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    if (m.type === 'childList' && m.addedNodes.length) {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.matches && node.matches('figure.custom-figure')) attachControls(node);
+        else attachObserversToAllFigures(node);
+      });
+    }
+  }
+});
+mo.observe(editor.root, { childList: true, subtree: true });
+
+attachObserversToAllFigures(editor.root);
 
 /* ---------------------------
    Small helpers
