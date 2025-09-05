@@ -17,6 +17,7 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
 .ql-toolbar .ql-formats{background:#fff;border:1px solid var(--button-border);border-radius:12px;padding:4px;display:flex;align-items:center;gap:2px}
 .ql-toolbar.ql-snow button{height:32px;width:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .ql-toolbar.ql-snow button:hover{background:#f5f5f5}
+.ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label{border: none !important;}
 .ql-toolbar .ql-picker{height:32px;min-width:35px;font-size:14px;border-radius:6px;display:flex;align-items:center}
 .ql-toolbar .ql-picker-label{display:flex;align-items:center;padding:0 8px}
 .ql-toolbar .ql-picker-options{border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
@@ -627,16 +628,133 @@ if (toolbar) {
    Tooltip system (unchanged)
    --------------------------- */
 const TOOLTIP_MAP = { bold: 'Bold (Ctrl+B)', italic: 'Italic (Ctrl+I)', underline: 'Underline (Ctrl+U)', strike: 'Strikethrough', blockquote: 'Blockquote', 'code-block': 'Code block', 'header:1': 'Heading 1','header:2': 'Heading 2', 'list:ordered': 'Ordered list', 'list:bullet': 'Bulleted list', 'list:check': 'Checklist','script:sub': 'Subscript', 'script:super': 'Superscript','indent:-1': 'Decrease indent','indent:+1': 'Increase indent','direction:rtl': 'Right-to-left', 'align': 'Alignment', 'size': 'Font size', 'color': 'Text color', 'background': 'Background color','font': 'Font family', link: 'Insert link', image: 'Insert image', video: 'Insert video', formula: 'Insert formula', 'table-better': 'Table tools', clean: 'Remove formatting', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y / Ctrl+Shift+Z)' };
-const tooltipEl = document.createElement('div'); tooltipEl.className = 'ql-custom-tooltip'; document.body.appendChild(tooltipEl);
-function detectFormatFromNode(node) { if (!node) return null; for (const cls of node.classList) { if (!cls.startsWith('ql-')) continue; const key = cls.slice(3); const val = node.getAttribute('value') || node.getAttribute('data-value'); if (val !== null && val !== undefined && val !== '') return `${key}:${val}`; return key; } const picker = node.closest && node.closest('.ql-picker'); if (picker) return 'align'; return null; }
-function getTooltipTextForNode(node) { if (!node) return ''; if (node.title) return node.title; if (node.dataset && node.dataset.tooltip) return node.dataset.tooltip; const fmt = detectFormatFromNode(node); if (!fmt) return node.innerText.trim() || node.getAttribute('aria-label') || ''; if (TOOLTIP_MAP[fmt]) return TOOLTIP_MAP[fmt]; const [k,v] = fmt.split(':'); if (v) { if (k === 'header') return `Heading ${v}`; if (k === 'list') { if (v==='ordered') return 'Ordered list'; if (v==='bullet') return 'Bulleted list'; if (v==='check') return 'Checklist'; } if (k === 'script') return v === 'sub' ? 'Subscript' : 'Superscript'; if (k === 'indent') return v === '-1' ? 'Decrease indent' : 'Increase indent'; } return k.charAt(0).toUpperCase() + k.slice(1); }
+// create tooltip element (keep your TOOLTIP_MAP above)
+const tooltipEl = document.createElement('div');
+tooltipEl.className = 'ql-custom-tooltip';
+document.body.appendChild(tooltipEl);
+
+// keep your detectFormatFromNode() as-is if you want; using the original:
+function detectFormatFromNode(node) {
+  if (!node) return null;
+  for (const cls of node.classList) {
+    if (!cls.startsWith('ql-')) continue;
+    const key = cls.slice(3);
+    const val = node.getAttribute('value') || node.getAttribute('data-value');
+    if (val !== null && val !== undefined && val !== '') return `${key}:${val}`;
+    return key;
+  }
+  const picker = node.closest && node.closest('.ql-picker');
+  if (picker) return 'align';
+  return null;
+}
+
+// prefer dataset.tooltip, then aria-label, then format-map
+function getTooltipTextForNode(node) {
+  if (!node) return '';
+  if (node.dataset && node.dataset.tooltip) return node.dataset.tooltip;
+  if (node.getAttribute && node.getAttribute('aria-label')) return node.getAttribute('aria-label');
+  const fmt = detectFormatFromNode(node);
+  if (!fmt) return (node.innerText || '').trim() || '';
+  if (TOOLTIP_MAP[fmt]) return TOOLTIP_MAP[fmt];
+  const [k,v] = fmt.split(':');
+  if (v) {
+    if (k === 'header') return `Heading ${v}`;
+    if (k === 'list') {
+      if (v === 'ordered') return 'Ordered list';
+      if (v === 'bullet') return 'Bulleted list';
+      if (v === 'check') return 'Checklist';
+    }
+    if (k === 'script') return v === 'sub' ? 'Subscript' : 'Superscript';
+    if (k === 'indent') return v === '-1' ? 'Decrease indent' : 'Increase indent';
+  }
+  return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
 let mouseMoveHandler = null;
-function positionTooltip(target, event){ const rect = target.getBoundingClientRect(); tooltipEl.style.left = '0px'; tooltipEl.style.top = '0px'; const tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight; let left, top; if (event && (event.clientX || event.clientY)) { left = event.clientX - tw/2; top = event.clientY - th - 12; } else { left = rect.left + (rect.width/2) - (tw/2); top = rect.top - th - 10; } const margin = 8; if (left < margin) left = margin; if (left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin; if (top < margin) top = rect.bottom + 12; tooltipEl.style.left = `${Math.round(left)}px`; tooltipEl.style.top = `${Math.round(top)}px`; }
-function showTooltip(target, event) { const text = getTooltipTextForNode(target); if (!text) return; tooltipEl.textContent = text; tooltipEl.classList.add('visible'); positionTooltip(target, event); mouseMoveHandler = (ev) => positionTooltip(target, ev); document.addEventListener('mousemove', mouseMoveHandler); }
-function hideTooltip() { tooltipEl.classList.remove('visible'); tooltipEl.textContent = ''; if (mouseMoveHandler) { document.removeEventListener('mousemove', mouseMoveHandler); mouseMoveHandler = null; } }
-function attachToolbarTooltips() { const toolbarEl = document.querySelector('.ql-toolbar'); if (!toolbarEl) return; const controls = toolbarEl.querySelectorAll('button, .ql-picker, .ql-picker-label, select, input'); controls.forEach(ctrl => { if (ctrl.dataset.tooltipBound) return; ctrl.dataset.tooltipBound = '1'; const title = getTooltipTextForNode(ctrl) || ''; if (title) ctrl.title = title; ctrl.addEventListener('mouseenter', (ev) => showTooltip(ctrl, ev)); ctrl.addEventListener('mouseleave', hideTooltip); ctrl.addEventListener('click', hideTooltip); }); }
+function positionTooltip(target, event) {
+  const rect = target.getBoundingClientRect();
+  tooltipEl.style.left = '0px';
+  tooltipEl.style.top = '0px';
+  const tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight;
+  let left, top;
+  if (event && (event.clientX || event.clientY)) {
+    left = event.clientX - tw/2;
+    top = event.clientY - th - 12;
+  } else {
+    left = rect.left + (rect.width/2) - (tw/2);
+    top = rect.top - th - 10;
+  }
+  const margin = 8;
+  if (left < margin) left = margin;
+  if (left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
+  if (top < margin) top = rect.bottom + 12;
+  tooltipEl.style.left = `${Math.round(left)}px`;
+  tooltipEl.style.top = `${Math.round(top)}px`;
+}
+
+function showTooltip(target, event) {
+  const text = getTooltipTextForNode(target);
+  if (!text) return;
+  tooltipEl.textContent = text;
+  tooltipEl.classList.add('visible');
+  positionTooltip(target, event);
+  // attach a single mousemove handler for live positioning; keep one global reference
+  mouseMoveHandler = (ev) => positionTooltip(target, ev);
+  document.addEventListener('mousemove', mouseMoveHandler);
+}
+
+function hideTooltip() {
+  tooltipEl.classList.remove('visible');
+  tooltipEl.textContent = '';
+  if (mouseMoveHandler) {
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    mouseMoveHandler = null;
+  }
+}
+
+function attachToolbarTooltips() {
+  const toolbarEl = document.querySelector('.ql-toolbar');
+  if (!toolbarEl) return;
+
+  // candidate controls inside toolbar
+  const controls = toolbarEl.querySelectorAll('button, .ql-picker, .ql-picker-label, select, input');
+
+  controls.forEach(ctrl => {
+    // skip if this element is already bound
+    if (ctrl.dataset && ctrl.dataset.tooltipBound) return;
+
+    // if any ancestor inside the toolbar is already bound, skip this element to prevent nested double-bind
+    let anc = ctrl.parentElement;
+    let skip = false;
+    while (anc && anc !== toolbarEl) {
+      if (anc.dataset && anc.dataset.tooltipBound) { skip = true; break; }
+      anc = anc.parentElement;
+    }
+    if (skip) return;
+
+    // mark this element as bound
+    ctrl.dataset.tooltipBound = '1';
+
+    // compute tooltip text and store it on dataset (remove title to avoid native tooltip)
+    const title = getTooltipTextForNode(ctrl) || '';
+    if (title) {
+      ctrl.dataset.tooltip = title;
+      ctrl.setAttribute('aria-label', title); // keep accessible
+      ctrl.removeAttribute('title'); // IMPORTANT: remove native title so browser tooltip won't show
+    }
+
+    // bind events (single set)
+    ctrl.addEventListener('mouseenter', (ev) => showTooltip(ctrl, ev));
+    ctrl.addEventListener('mouseleave', hideTooltip);
+    ctrl.addEventListener('click', hideTooltip);
+  });
+}
+
+// initial attach + observe
 attachToolbarTooltips();
-const toolbarObserver = new MutationObserver(() => attachToolbarTooltips()); const tb = document.querySelector('.ql-toolbar'); if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
+const toolbarObserver = new MutationObserver(() => attachToolbarTooltips());
+const tb = document.querySelector('.ql-toolbar');
+if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
 
 /* ---------------------------
    Drag and drop support (images + native videos) -> inserts FigureBlot
