@@ -374,22 +374,30 @@ try {
     const Delta = Quill.import('delta');
 
     Clipboard.addMatcher('IMG', (node, delta) => {
+      // If we are currently handling a drop/upload, ignore clipboard HTML inserts
+      if (window.__suppressDropInserts) return new Delta();
+
       const src = node.getAttribute('src') || '';
       if (!src) return delta;
-      if (wasRecentlyInserted(normalizeUrl(src))) return new Delta();
-      markInserted(normalizeUrl(src));
+      const key = normalizeUrl(src);
+      if (wasRecentlyInserted(key)) return new Delta();
+      markInserted(key); // mark early to prevent races
       return new Delta().insert({ figure: { url: src, type: 'image', caption: '' } }).insert('\n');
     });
 
     Clipboard.addMatcher('VIDEO', (node, delta) => {
+      if (window.__suppressDropInserts) return new Delta();
+
       const src = node.getAttribute('src') || (node.querySelector('source') && node.querySelector('source').getAttribute('src')) || '';
       if (!src) return delta;
-      if (wasRecentlyInserted(normalizeUrl(src))) return new Delta();
-      markInserted(normalizeUrl(src));
+      const key = normalizeUrl(src);
+      if (wasRecentlyInserted(key)) return new Delta();
+      markInserted(key);
       return new Delta().insert({ figure: { url: src, type: 'video', caption: '' } }).insert('\n');
     });
   }
 } catch (e) { /* ignore */ }
+
 
 /* ---------------------------
    attachMediaResizeSync (uses ResizeObserver)
@@ -486,6 +494,11 @@ function attachMediaResizeSync(mediaEl, containerEl) {
 function attachObserversToAllFigures(root = document) {
   (root || document).querySelectorAll('img, video').forEach(media => {
     try {
+      const src = media.currentSrc || media.getAttribute && media.getAttribute('src') || '';
+      if (src && wasRecentlyInserted(normalizeUrl(src))) {
+        // It was just inserted by our handler — avoid treating a simultaneous native insert as a new one
+        return;
+      }
       if (!media.closest('#root')) return;
       if (media.closest('figure.custom-figure')) {
         attachMediaResizeSync(media, media.closest('figure.custom-figure'));
@@ -773,48 +786,186 @@ editorRoot.addEventListener("dragleave", (e) => {
   editorRoot.classList.remove("drag-target");
 });
 
+function findExistingMediaElementBySrc(url) {
+  if (!url) return null;
+  const norm = normalizeUrl(url);
+  // match images and videos; compare using element.currentSrc (preferred) or src attribute
+  const imgs = Array.from(editor.root.querySelectorAll('img'));
+  for (const img of imgs) {
+    try {
+      const s = img.currentSrc || img.getAttribute('src') || '';
+      if (!s) continue;
+      if (normalizeUrl(s) === norm) return img;
+    } catch (e) { /* ignore */ }
+  }
+  const vids = Array.from(editor.root.querySelectorAll('video'));
+  for (const v of vids) {
+    try {
+      const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
+      if (!s) continue;
+      if (normalizeUrl(s) === norm) return v;
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 editorRoot.addEventListener("drop", (e) => {
   e.preventDefault();
+  e.stopPropagation();
   editorCard.classList.remove("drag-over");
   editorRoot.classList.remove("drag-target");
 
   if (!e.dataTransfer) return;
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
-  if (!file) return;
 
-  if (file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      editor.insertEmbed(range.index, 'figure', { url: evt.target.result, type: 'image', caption: '' }, Quill.sources.USER);
-      editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
-      setTimeout(() => attachObserversToAllFigures(), 60);
-      markInserted(normalizeUrl(evt.target.result));
-    };
-    reader.readAsDataURL(file);
+  // build file list (prefer items -> files)
+  const items = Array.from(e.dataTransfer.items || []);
+  const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+  const fallbackFiles = Array.from(e.dataTransfer.files || []);
+  const realFiles = files.length ? files : fallbackFiles;
+
+  if (!realFiles.length) {
+    // no files — let other handlers (clipboard/uri) run normally (they'll dedupe)
     return;
   }
 
-  if (file.type.startsWith("video/")) {
-    try {
-      const blobUrl = URL.createObjectURL(file);
-      editor.insertEmbed(range.index, "figure", { url: blobUrl, type: 'video', caption: '' }, Quill.sources.USER);
-      editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
-      attachObserversToAllFigures();
-      blobUrlTracker.add(blobUrl);
-      markInserted(normalizeUrl(blobUrl));
-    } catch (err) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        editor.insertEmbed(range.index, "figure", { url: evt.target.result, type: 'video', caption: '' }, Quill.sources.USER);
-        editor.insertText(range.index + 1, "\n", Quill.sources.SILENT);
-        attachObserversToAllFigures();
-        markInserted(normalizeUrl(evt.target.result));
-      };
-      reader.readAsDataURL(file);
+  // INSERT SEQUENCE: suppress other handlers briefly
+  const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+  let insertIndex = Math.max(0, selection.index);
+
+  // enable suppression
+  window.__suppressDropInserts = true;
+  // clear suppression after a safe window
+  const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+
+  // process files sequentially to keep order
+  (async () => {
+    for (const file of realFiles) {
+      try {
+        // inside your drop handler, when you have a single `file` (or in your loop):
+        if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+          (async () => {
+            // set suppression early (prevent clipboard matcher etc.)
+            window.__suppressDropInserts = true;
+            const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+
+            try {
+              let finalUrl;
+              if (file.type.startsWith("image/")) {
+                // read dataURL for image (you may prefer blob for performance — adjust if needed)
+                finalUrl = await new Promise((res, rej) => {
+                  const r = new FileReader();
+                  r.onload = (ev) => res(ev.target.result);
+                  r.onerror = rej;
+                  r.readAsDataURL(file);
+                });
+              } else {
+                // video: try blob first
+                try {
+                  finalUrl = URL.createObjectURL(file);
+                  blobUrlTracker.add(finalUrl);
+                } catch (err) {
+                  // fallback to dataURL if blob fails
+                  finalUrl = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = (ev) => res(ev.target.result);
+                    r.onerror = rej;
+                    r.readAsDataURL(file);
+                  });
+                }
+              }
+
+              if (!finalUrl) return;
+
+              const key = normalizeUrl(finalUrl);
+              // mark BEFORE inserting to avoid races
+              markInserted(key);
+
+              // If a plain <img> or <video> already exists with the same src, convert/update it to a figure
+              const existing = findExistingMediaElementBySrc(finalUrl);
+
+              if (existing) {
+                // Try to find the blot for the existing element (if present)
+                try {
+                  // If it's already inside a figure.custom-figure, we are probably done
+                  const fig = existing.closest && existing.closest('figure.custom-figure');
+                  if (fig) {
+                    // update its media src to the canonical finalUrl if needed
+                    const media = fig.querySelector('img, video');
+                    if (media) {
+                      if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
+                          (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
+                        // update DOM & re-sync blot
+                        if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
+                        else {
+                          const srcEl = media.querySelector('source') || document.createElement('source');
+                          srcEl.src = finalUrl;
+                          if (!media.querySelector('source')) media.appendChild(srcEl);
+                          media.load && media.load();
+                        }
+                        // update blot by re-inserting value (best-effort)
+                        const parentBlot = Quill.find(fig);
+                        if (parentBlot) {
+                          const idx = editor.getIndex(parentBlot);
+                          const val = FigureBlot.value(fig);
+                          editor.deleteText(idx, 1, Quill.sources.SILENT);
+                          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+                        }
+                      }
+                    }
+                    // move caret to after figure, done
+                    const blot = Quill.find(fig);
+                    if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
+                    clearSuppressionLater();
+                    setTimeout(() => attachObserversToAllFigures(), 60);
+                    return;
+                  }
+
+                  // If not inside a figure, try to find its blot and replace with figure embed
+                  const blot = Quill.find(existing);
+                  if (blot) {
+                    const idx = editor.getIndex(blot);
+                    const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+                    editor.deleteText(idx, 1, Quill.sources.SILENT);
+                    editor.insertEmbed(idx, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+                    editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
+                    editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
+                    clearSuppressionLater();
+                    setTimeout(() => attachObserversToAllFigures(), 60);
+                    return;
+                  }
+                } catch (err) {
+                  // fallthrough to normal insert below
+                  console.warn('existing-media convert failed', err);
+                }
+              }
+
+              // No existing element we could convert — do a normal insert (we already marked)
+              const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+              const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
+              editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+              editor.insertText(selectionIndex + 1, '\n', Quill.sources.SILENT);
+              editor.setSelection(selectionIndex + 2, 0, Quill.sources.SILENT);
+              setTimeout(() => attachObserversToAllFigures(), 60);
+              clearSuppressionLater();
+            } catch (err) {
+              console.warn('drop insert failed', err);
+              window.__suppressDropInserts = false;
+            }
+          })();
+
+          return;
+        }
+      } catch (err) {
+        console.warn('drop processing error', err);
+      }
     }
-    return;
-  }
+
+    // finalise
+    setTimeout(() => attachObserversToAllFigures(), 80);
+    // place caret after last inserted blot
+    editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
+    clearSuppression();
+  })();
 });
 
 /* ---------------------------
