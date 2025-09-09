@@ -1,1468 +1,1812 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quill — Image + Caption + Link + Size</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quill — Image + Caption + Link + Size</title>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css">
 
-<style>
-:root{--card-bg:#fff; --page-bg:#f6f7fb; --text:#2c3e50; --muted:#98a2b3; --ring:#dbe6ff; --ring-strong:#9ec5ff; --button-bg:#fafafa; --button-border:#e4e7ec; --button-hover:#eef4ff; --button-active:#cfe2ff; --shadow:0 10px 30px rgba(0,0,0,0.08);} 
-*{box-sizing:border-box}
-body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;display:flex;justify-content:center;padding:42px 12px;color:var(--text)}
-.editor-card{width:100%;max-width:1080px;border-radius:18px;background:var(--card-bg);box-shadow:var(--shadow);border:1px solid #eef0f4;position:relative}
-.ql-toolbar.ql-snow{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border:none;border-bottom:1px solid #eee;background:#fff;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,0.04);border-radius:18px 18px 0 0}
-.ql-toolbar .ql-formats{background:#fff;border:1px solid var(--button-border);border-radius:12px;padding:4px;display:flex;align-items:center;gap:2px}
-.ql-toolbar.ql-snow button{height:32px;width:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .2s}
-.ql-toolbar.ql-snow button:hover{background:#f5f5f5}
-.ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label{border: none !important;}
-.ql-toolbar .ql-picker{height:32px;min-width:35px;font-size:14px;border-radius:6px;display:flex;align-items:center}
-.ql-toolbar .ql-picker-label{display:flex;align-items:center;padding:0 8px}
-.ql-toolbar .ql-picker-options{border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
-.ql-toolbar button svg{width:16px;height:16px}
-.ql-container.ql-snow{border:none;border-radius:0 0 14px 14px;box-shadow: inset 0 0 0 1px #eee}
-.ql-editor{min-height:540px;font-size:17px;line-height:1.8;color:var(--text);background:#fff;border-radius:0 0 14px 14px;position:relative}
-.ql-editor.ql-blank::before{color:#a3aab7;font-style:italic}
-.ql-editor img,.ql-editor video{border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin:1rem auto;display:block;max-width:100%}
-.video-resize-handle{width:12px;height:12px;background:#2196f3;position:absolute;right:0;bottom:0;cursor:nwse-resize;z-index:10;border-radius:3px}
-.ql-snow .ql-table-better{align-items:center;padding:6px 10px;font-size:14px;border-radius:6px}
-#char-count{position:absolute;bottom:-80px;right:16px;background:rgba(0,0,0,0.05);color:#555;padding:4px 10px;border-radius:12px;font-size:13px;pointer-events:none}
-.ql-custom-tooltip{position:fixed;pointer-events:none;background:rgba(20,20,20,0.95);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;transform:translateY(-8px);transition:opacity .12s ease, transform .12s ease;opacity:0;z-index:9999;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.25)}
-.ql-custom-tooltip.visible{opacity:1;transform:translateY(0)}
-.ql-caption {
-  display: block;
-  margin: 6px auto 0;
-  box-sizing: border-box;
-  max-width: 100%;
-  white-space: normal;
-  text-align: center;
-}
-/* Improved resize UI: rounded handles, tooltip overlay, guide lines */
-figure.custom-figure .fig-resize-handle,
-figure.custom-figure .fig-handle { display: none; }
+  <style>
+    :root {
+      --card-bg: #fff;
+      --page-bg: #f6f7fb;
+      --text: #2c3e50;
+      --muted: #98a2b3;
+      --ring: #dbe6ff;
+      --ring-strong: #9ec5ff;
+      --button-bg: #fafafa;
+      --button-border: #e4e7ec;
+      --button-hover: #eef4ff;
+      --button-active: #cfe2ff;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
 
-figure.custom-figure .fig-corner {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-radius: 6px;
-  background: linear-gradient(180deg,#ffffff,#f3f6fb);
-  box-shadow: 0 6px 16px rgba(17,24,39,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
-  border: 1px solid rgba(90,100,120,0.14);
-  transform-origin: center;
-  transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
-  z-index: 140;
-  cursor: nwse-resize;
-  touch-action: none;
-  display: block;
-}
+    * {
+      box-sizing: border-box
+    }
 
-/* direction-specific cursors */
-figure.custom-figure .fig-corner.tl { cursor: nwse-resize; }
-figure.custom-figure .fig-corner.tr { cursor: nesw-resize; }
-figure.custom-figure .fig-corner.br { cursor: nwse-resize; }
-figure.custom-figure .fig-corner.bl { cursor: nesw-resize; }
+    body {
+      background: var(--page-bg);
+      font-family: "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 42px 12px;
+      color: var(--text)
+    }
 
-figure.custom-figure .fig-corner:focus { outline: 2px solid rgba(30,144,255,0.18); }
-figure.custom-figure .fig-corner:hover { transform: scale(1.18); box-shadow: 0 10px 30px rgba(17,24,39,0.14); }
+    .editor-card {
+      width: 100%;
+      max-width: 1080px;
+      border-radius: 18px;
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+      border: 1px solid #eef0f4;
+      position: relative
+    }
 
-/* larger touch hit area */
-figure.custom-figure .fig-corner::before {
-  content:"";
-  position:absolute;
-  left:-10px; top:-10px;
-  width:36px; height:36px;
-  background:transparent;
-  border-radius: 12px;
-}
+    .ql-toolbar.ql-snow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 12px;
+      border: none;
+      border-bottom: 1px solid #eee;
+      background: #fff;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      border-radius: 18px 18px 0 0
+    }
 
-/* overlay displaying size and percent + aspect icon */
-figure.custom-figure .resize-overlay {
-  position: absolute;
-  left: 50%;
-  top: 6px;
-  transform: translateX(-50%);
-  background: rgba(12,16,22,0.9);
-  color: #fff;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  z-index: 200;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  box-shadow: 0 8px 24px rgba(8,12,20,0.35);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .12s ease, transform .12s ease;
-  white-space: nowrap;
-}
+    .ql-toolbar .ql-formats {
+      background: #fff;
+      border: 1px solid var(--button-border);
+      border-radius: 12px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      gap: 2px
+    }
 
-/* visible when active during resizing */
-figure.custom-figure.resizing .resize-overlay { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .ql-toolbar.ql-snow button {
+      height: 32px;
+      width: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s
+    }
 
-/* aspect lock icon */
-figure.custom-figure .resize-overlay .aspect {
-  width:16px;height:16px;border-radius:4px;background:transparent;display:inline-flex;align-items:center;justify-content:center;font-weight:700;
-  opacity:0.95;font-size:12px;
-}
+    .ql-toolbar.ql-snow button:hover {
+      background: #f5f5f5
+    }
 
-/* guide lines */
-figure.custom-figure .resize-guide-h,
-figure.custom-figure .resize-guide-v {
-  position: absolute;
-  background: rgba(30,144,255,0.14);
-  z-index: 120;
-  pointer-events: none;
-  display: none;
-}
-figure.custom-figure.resizing .resize-guide-h,
-figure.custom-figure.resizing .resize-guide-v { display:block; }
+    .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+      border: none !important;
+    }
 
-/* horizontal dashed (thin) */
-figure.custom-figure .resize-guide-h {
-  height: 1px;
-  left: -2000px;
-  right: -2000px;
-  border-top: 1px dashed rgba(30,144,255,0.18);
-}
+    .ql-toolbar .ql-picker {
+      height: 32px;
+      min-width: 35px;
+      font-size: 14px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center
+    }
 
-/* vertical dashed */
-figure.custom-figure .resize-guide-v {
-  width: 1px;
-  top: -2000px;
-  bottom: -2000px;
-  border-left: 1px dashed rgba(30,144,255,0.18);
-}
+    .ql-toolbar .ql-picker-label {
+      display: flex;
+      align-items: center;
+      padding: 0 8px
+    }
 
-/* subtle snap indicator */
-figure.custom-figure .snap-dot {
-  position:absolute;width:8px;height:8px;border-radius:50%;background:#1e90ff;border:2px solid #fff;box-shadow:0 6px 14px rgba(30,144,255,0.16);z-index:170;display:none;
-}
-figure.custom-figure.snap .snap-dot { display:block; }
+    .ql-toolbar .ql-picker-options {
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1)
+    }
 
-/* toolbar tweaks (slightly lifted for contrast) */
-.figure-toolbar{
-  position: absolute;
-  right: 8px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(16,24,40,0.06);
-  padding: 4px;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(10,20,40,0.08);
-  z-index: 120;
-  font-size: 0.85rem;
-  transform-origin: top right;
-  transition: transform .12s ease, opacity .12s ease, top .12s ease;
-  opacity: 0;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
-  min-height: 36px;
-  gap: 4px;
-}
-figure.custom-figure:hover .figure-toolbar,
-figure.custom-figure:focus-within .figure-toolbar,
-figure.custom-figure.selected .figure-toolbar,
-figure.custom-figure.sized .figure-toolbar{
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-.ql-caption:focus{outline:none;box-shadow:0 0 0 3px rgba(66,153,225,0.12)}
-.quill-modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.45);display:none;align-items:center;justify-content:center;z-index:11000}
-.quill-modal-overlay.active{display:flex}
-.quill-modal{width:520px;max-width:calc(100% - 32px);background:#fff;border-radius:12px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,0.25);font-size:14px}
-.quill-modal h3{Margin:0 0 10px;font-size:16px;color:var(--text)}
-.quill-modal .row{display:flex;gap:10px;margin-bottom:10px;align-items:center}
-.quill-modal label{display:block;width:100%;font-size:13px;color:var(--muted)}
-.quill-modal input[type="text"],.quill-modal input[type="file"],.quill-modal textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e6e9ee;background:#fbfbfb;font-size:14px}
-.quill-modal .preview{width:100%;height:220px;border-radius:8px;background:#fafafa;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px dashed #e6e9ee}
-.quill-modal .preview img,.quill-modal .preview video{max-width:100%;max-height:100%;display:block}
-.quill-modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-.btn{padding:8px 12px;border-radius:8px;border:1px solid var(--button-border);background:var(--button-bg);cursor:pointer}
-.btn.primary{background:linear-gradient(180deg,#1e90ff,#147de8);color:#fff;border:1px solid rgba(0,0,0,0.08)}
-.btn.ghost{background:transparent}
-@media (max-width:520px){.quill-modal{padding:12px}.quill-modal .preview{height:160px}}
-.editor-card.drag-over{outline:3px dashed rgba(30,144,255,0.22);box-shadow:0 12px 36px rgba(20,50,120,0.06)}
-.ql-editor.drag-target{background-image:linear-gradient(90deg,rgba(30,144,255,0.03),rgba(30,144,255,0.01))}
-.ql-hr { box-sizing: content-box; height: 0; border: 0; border-top: 1px solid #DFE3E7; }
+    .ql-toolbar button svg {
+      width: 16px;
+      height: 16px
+    }
 
-/* custom figure wrapper styling & toolbar */
-figure.custom-figure {
-  display: block;
-  position: relative;
-  margin: 12px 0;
-  padding: 6px;
-  text-align: center;
-  vertical-align: top;
-  box-sizing: border-box;
-  max-width: 100%;
-  border-radius: 6px;
-  width: 320px;
-}
-figure.custom-figure img,
-figure.custom-figure video { display:block; width:100%; height:auto; margin:0 auto; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
-figure.custom-figure a[data-figure-link] { display: block; text-decoration: none; color: inherit; }
+    .ql-container.ql-snow {
+      border: none;
+      border-radius: 0 0 14px 14px;
+      box-shadow: inset 0 0 0 1px #eee
+    }
 
-/* Updated: handle positioned dynamically by JS; CSS keeps minimal defaults */
-figure.custom-figure .fig-resize-handle {
-  position:absolute;
-  /* positioned dynamically via JS to stay anchored to the media's bottom-right */
-  right: auto;
-  bottom: auto;
-  width:14px;
-  height:14px;
-  background:#fff;
-  border:1px solid #888;
-  cursor:se-resize;
-  border-radius:3px;
-  z-index:40;
-}
-figure.custom-figure .fig-resize-handle:after { content:""; display:block; width:8px; height:8px; margin:2px; border-right:2px solid #666; border-bottom:2px solid #666; }
+    .ql-editor {
+      min-height: 540px;
+      font-size: 17px;
+      line-height: 1.8;
+      color: var(--text);
+      background: #fff;
+      border-radius: 0 0 14px 14px;
+      position: relative
+    }
 
-.figure-toolbar {
-  position: absolute;
-  top: -40px;
-  right: 0;
-  display: flex;
-  gap: 6px;
-  background: #fff;
-  border: 1px solid #ddd;
-  padding: 4px;
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-  z-index: 60;
-  font-size: 13px;
-}
-.figure-toolbar button{
-  appearance: none;
-  border: 0;
-  background: transparent;
-  height: 28px;
-  width: 28px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:4px;
-  border-radius:6px;
-  cursor:pointer;
-  color: #263238;
-  transition: background .12s ease, transform .06s ease, box-shadow .06s;
-}
-.figure-toolbar button:hover { background:#f2f6fb; }
-figure.align-left { margin-left: 0; margin-right: auto; text-align: left; }
-figure.align-center { margin-left: auto; margin-right: auto; text-align: center; }
-figure.align-right { margin-left: auto; margin-right: 0; text-align: right; }
-</style>
+    .ql-editor.ql-blank::before {
+      color: #a3aab7;
+      font-style: italic
+    }
+
+    .ql-editor img,
+    .ql-editor video {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+      margin: 1rem auto;
+      display: block;
+      max-width: 100%
+    }
+
+    .video-resize-handle {
+      width: 12px;
+      height: 12px;
+      background: #2196f3;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: nwse-resize;
+      z-index: 10;
+      border-radius: 3px
+    }
+
+    .ql-snow .ql-table-better {
+      align-items: center;
+      padding: 6px 10px;
+      font-size: 14px;
+      border-radius: 6px
+    }
+
+    #char-count {
+      position: absolute;
+      bottom: -80px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.05);
+      color: #555;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      pointer-events: none
+    }
+
+    .ql-custom-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(20, 20, 20, 0.95);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      transform: translateY(-8px);
+      transition: opacity .12s ease, transform .12s ease;
+      opacity: 0;
+      z-index: 9999;
+      white-space: nowrap;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25)
+    }
+
+    .ql-custom-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    .ql-caption {
+      display: block;
+      margin: 6px auto 0;
+      box-sizing: border-box;
+      max-width: 100%;
+      white-space: normal;
+      text-align: center;
+    }
+
+    /* Improved resize UI: rounded handles, tooltip overlay, guide lines */
+    figure.custom-figure .fig-resize-handle,
+    figure.custom-figure .fig-handle {
+      display: none;
+    }
+
+    figure.custom-figure .fig-corner {
+      position: absolute;
+      width: 0px;
+      height: 8px;
+      background: #007bff;
+      border-radius: 15%;
+      cursor: nwse-resize;
+      /* box-shadow: 0 6px 16px rgba(17,24,39,0.12), inset 0 1px 0 rgba(255,255,255,0.8); */
+      border: 1px solid rgba(90, 100, 120, 0.14);
+      transform-origin: center;
+      transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+      z-index: 140;
+      cursor: nwse-resize;
+      touch-action: none;
+      display: block;
+    }
+
+    /* direction-specific cursors */
+    figure.custom-figure .fig-corner.tl {
+      top: -5px;
+      left: -5px;
+      cursor: nwse-resize;
+    }
+
+    figure.custom-figure .fig-corner.tr {
+      top: -5px;
+      left: -5px;
+      cursor: nesw-resize;
+    }
+
+    figure.custom-figure .fig-corner.br {
+      top: -5px;
+      left: -5px;
+      cursor: nwse-resize;
+    }
+
+    figure.custom-figure .fig-corner.bl {
+      top: -5px;
+      left: -5px;
+      cursor: nesw-resize;
+    }
+
+    figure.custom-figure .fig-corner:focus {
+      outline: 2px solid rgba(30, 144, 255, 0.18);
+    }
+
+    figure.custom-figure .fig-corner:hover {
+      transform: scale(1.18);
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.14);
+    }
+
+    /* larger touch hit area */
+    figure.custom-figure .fig-corner::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      top: -10px;
+      width: 36px;
+      height: 36px;
+      background: transparent;
+      border-radius: 12px;
+    }
+
+    /* overlay displaying size and percent + aspect icon */
+    figure.custom-figure .resize-overlay {
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      transform: translateX(-50%);
+      background: rgba(12, 16, 22, 0.9);
+      color: #fff;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      z-index: 200;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(8, 12, 20, 0.35);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .12s ease, transform .12s ease;
+      white-space: nowrap;
+    }
+
+    /* visible when active during resizing */
+    figure.custom-figure.resizing .resize-overlay {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* aspect lock icon */
+    figure.custom-figure .resize-overlay .aspect {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      opacity: 0.95;
+      font-size: 12px;
+    }
+
+    /* guide lines */
+    figure.custom-figure .resize-guide-h,
+    figure.custom-figure .resize-guide-v {
+      position: absolute;
+      background: rgba(30, 144, 255, 0.14);
+      z-index: 120;
+      pointer-events: none;
+      display: none;
+    }
+
+    figure.custom-figure.resizing .resize-guide-h,
+    figure.custom-figure.resizing .resize-guide-v {
+      display: block;
+    }
+
+    /* horizontal dashed (thin) */
+    figure.custom-figure .resize-guide-h {
+      height: 1px;
+      left: -2000px;
+      right: -2000px;
+      border-top: 1px dashed rgba(30, 144, 255, 0.18);
+    }
+
+    /* vertical dashed */
+    figure.custom-figure .resize-guide-v {
+      width: 1px;
+      top: -2000px;
+      bottom: -2000px;
+      border-left: 1px dashed rgba(30, 144, 255, 0.18);
+    }
+
+    /* subtle snap indicator */
+    figure.custom-figure .snap-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #1e90ff;
+      border: 2px solid #fff;
+      box-shadow: 0 6px 14px rgba(30, 144, 255, 0.16);
+      z-index: 170;
+      display: none;
+    }
+
+    figure.custom-figure.snap .snap-dot {
+      display: block;
+    }
+
+    /* toolbar tweaks (slightly lifted for contrast) */
+    .figure-toolbar {
+      top: -44px;
+      right: 2px;
+      opacity: 0.98;
+    }
+
+    .ql-caption:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.12)
+    }
+
+    .quill-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 10, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 11000
+    }
+
+    .quill-modal-overlay.active {
+      display: flex
+    }
+
+    .quill-modal {
+      width: 520px;
+      max-width: calc(100% - 32px);
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+      font-size: 14px
+    }
+
+    .quill-modal h3 {
+      Margin: 0 0 10px;
+      font-size: 16px;
+      color: var(--text)
+    }
+
+    .quill-modal .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center
+    }
+
+    .quill-modal label {
+      display: block;
+      width: 100%;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .quill-modal input[type="text"],
+    .quill-modal input[type="file"],
+    .quill-modal textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #e6e9ee;
+      background: #fbfbfb;
+      font-size: 14px
+    }
+
+    .quill-modal .preview {
+      width: 100%;
+      height: 220px;
+      border-radius: 8px;
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px dashed #e6e9ee
+    }
+
+    .quill-modal .preview img,
+    .quill-modal .preview video {
+      max-width: 100%;
+      max-height: 100%;
+      display: block
+    }
+
+    .quill-modal .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px
+    }
+
+    .btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      cursor: pointer
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, #1e90ff, #147de8);
+      color: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.08)
+    }
+
+    .btn.ghost {
+      background: transparent
+    }
+
+    @media (max-width:520px) {
+      .quill-modal {
+        padding: 12px
+      }
+
+      .quill-modal .preview {
+        height: 160px
+      }
+    }
+
+    .editor-card.drag-over {
+      outline: 3px dashed rgba(30, 144, 255, 0.22);
+      box-shadow: 0 12px 36px rgba(20, 50, 120, 0.06)
+    }
+
+    .ql-editor.drag-target {
+      background-image: linear-gradient(90deg, rgba(30, 144, 255, 0.03), rgba(30, 144, 255, 0.01))
+    }
+
+    .ql-hr {
+      box-sizing: content-box;
+      height: 0;
+      border: 0;
+      border-top: 1px solid #DFE3E7;
+    }
+
+    /* custom figure wrapper styling & toolbar */
+    figure.custom-figure {
+      display: block;
+      position: relative;
+      margin: 12px 0;
+      padding: 6px;
+      text-align: center;
+      vertical-align: top;
+      box-sizing: border-box;
+      max-width: 100%;
+      border-radius: 6px;
+      width: 320px;
+    }
+
+    figure.custom-figure img,
+    figure.custom-figure video {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 0 auto;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+    }
+
+    figure.custom-figure a[data-figure-link] {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Updated: handle positioned dynamically by JS; CSS keeps minimal defaults */
+    figure.custom-figure .fig-resize-handle {
+      position: absolute;
+      /* positioned dynamically via JS to stay anchored to the media's bottom-right */
+      right: auto;
+      bottom: auto;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border: 1px solid #888;
+      cursor: se-resize;
+      border-radius: 3px;
+      z-index: 40;
+    }
+
+    figure.custom-figure .fig-resize-handle:after {
+      content: "";
+      display: block;
+      width: 8px;
+      height: 8px;
+      margin: 2px;
+      border-right: 2px solid #666;
+      border-bottom: 2px solid #666;
+    }
+
+    .figure-toolbar {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      display: flex;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 4px;
+      border-radius: 6px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      z-index: 60;
+      font-size: 13px;
+    }
+
+    .figure-toolbar button {
+      background: transparent;
+      border: 0;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .figure-toolbar button:hover {
+      background: #f2f6fb;
+    }
+
+    figure.align-left {
+      margin-left: 0;
+      margin-right: auto;
+      text-align: left;
+    }
+
+    figure.align-center {
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    figure.align-right {
+      margin-left: auto;
+      margin-right: 0;
+      text-align: right;
+    }
+  </style>
 </head>
+
 <body>
-<div class="editor-card">
-  <div id="root"></div>
-  <div id="char-count">Characters: 0</div>
-</div>
-
-<!-- Image modal -->
-<div id="quill-image-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="quill-modal" role="document" aria-labelledby="quill-image-modal-title">
-    <h3 id="quill-image-modal-title">Insert image (optional caption)</h3>
-    <div class="row">
-      <label>Image URL<input id="quill-image-url" type="text" placeholder="https://example.com/image.jpg" /></label>
-    </div>
-    <div class="row">
-      <label>Or upload file<input id="quill-image-file" type="file" accept="image/*" /></label>
-    </div>
-    <div class="row">
-      <label>Caption (optional)<input id="quill-image-caption" type="text" placeholder="Write a caption (optional)" /></label>
-    </div>
-    <div class="row"><div class="preview" id="quill-image-preview">Preview</div></div>
-    <div class="actions">
-      <button id="quill-image-cancel" class="btn ghost" type="button">Cancel</button>
-      <button id="quill-image-insert" class="btn primary" type="button">Insert</button>
-    </div>
+  <div class="editor-card">
+    <div id="root"></div>
+    <div id="char-count">Characters: 0</div>
   </div>
-</div>
 
-<!-- Video modal -->
-<div id="quill-video-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="quill-modal" role="document" aria-labelledby="quill-video-modal-title">
-    <h3 id="quill-video-modal-title">Insert video (optional caption)</h3>
-    <div class="row">
-      <label>Video URL<input id="quill-video-url" type="text" placeholder="https://example.com/video.mp4" /></label>
-    </div>
-    <div class="row">
-      <label>Or upload file<input id="quill-video-file" type="file" accept="video/*" /></label>
-    </div>
-    <div class="row">
-      <label>Caption (optional)<input id="quill-video-caption" type="text" placeholder="Write a caption (optional)" /></label>
-    </div>
-    <div class="row"><div class="preview" id="quill-video-preview">Preview</div></div>
-    <div class="actions">
-      <button id="quill-video-cancel" class="btn ghost" type="button">Cancel</button>
-      <button id="quill-video-insert" class="btn primary" type="button">Insert</button>
-    </div>
-  </div>
-</div>
-
-<!-- Link modal (for figure links) -->
-<div id="quill-link-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="quill-modal" role="document" aria-labelledby="quill-link-modal-title">
-    <h3 id="quill-link-modal-title">Add / Edit link for image or video</h3>
-    <div class="row">
-      <label>URL<input id="quill-link-url" type="text" placeholder="https://example.com/page" /></label>
-    </div>
-    
-    <div class="actions">
-      <button id="quill-link-cancel" class="btn ghost" type="button">Cancel</button>
-      <button id="quill-link-remove" class="btn" type="button">Remove link</button>
-      <button id="quill-link-insert" class="btn primary" type="button">Apply link</button>
-    </div>
-  </div>
-</div>
-
-<!-- Size modal (for figure width/height) -->
-<div id="quill-size-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="quill-modal" role="document" aria-labelledby="quill-size-modal-title">
-    <h3 id="quill-size-modal-title">Set size for image / video</h3>
-    <div class="row">
-      <label>Width<input id="quill-size-width" type="text" placeholder="e.g. 320 or 50%" /></label>
-    </div>
-    <div class="row">
-      <label>Height<input id="quill-size-height" type="text" placeholder="e.g. 240 or auto" /></label>
-    </div>
-    <div class="row">
-      <label style="width:50%"><input id="quill-size-lock" type="checkbox" /> Lock aspect ratio</label>
-      <label style="width:50%"><small id="quill-size-intrinsic" style="color:var(--muted)"></small></label>
-    </div>
-    <div class="row">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn" data-preset="25%">25%</button>
-        <button class="btn" data-preset="50%">50%</button>
-        <button class="btn" data-preset="75%">75%</button>
-        <button class="btn" data-preset="100%">100%</button>
-        <button class="btn" data-preset="320px">320px</button>
-        <button class="btn" data-preset="640px">640px</button>
+  <!-- Image modal -->
+  <div id="quill-image-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="quill-modal" role="document" aria-labelledby="quill-image-modal-title">
+      <h3 id="quill-image-modal-title">Insert image (optional caption)</h3>
+      <div class="row">
+        <label>Image URL<input id="quill-image-url" type="text" placeholder="https://example.com/image.jpg" /></label>
+      </div>
+      <div class="row">
+        <label>Or upload file<input id="quill-image-file" type="file" accept="image/*" /></label>
+      </div>
+      <div class="row">
+        <label>Caption (optional)<input id="quill-image-caption" type="text"
+            placeholder="Write a caption (optional)" /></label>
+      </div>
+      <div class="row">
+        <div class="preview" id="quill-image-preview">Preview</div>
+      </div>
+      <div class="actions">
+        <button id="quill-image-cancel" class="btn ghost" type="button">Cancel</button>
+        <button id="quill-image-insert" class="btn primary" type="button">Insert</button>
       </div>
     </div>
-    <div class="actions">
-      <button id="quill-size-cancel" class="btn ghost" type="button">Cancel</button>
-      <button id="quill-size-apply" class="btn primary" type="button">Apply</button>
+  </div>
+
+  <!-- Video modal -->
+  <div id="quill-video-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="quill-modal" role="document" aria-labelledby="quill-video-modal-title">
+      <h3 id="quill-video-modal-title">Insert video (optional caption)</h3>
+      <div class="row">
+        <label>Video URL<input id="quill-video-url" type="text" placeholder="https://example.com/video.mp4" /></label>
+      </div>
+      <div class="row">
+        <label>Or upload file<input id="quill-video-file" type="file" accept="video/*" /></label>
+      </div>
+      <div class="row">
+        <label>Caption (optional)<input id="quill-video-caption" type="text"
+            placeholder="Write a caption (optional)" /></label>
+      </div>
+      <div class="row">
+        <div class="preview" id="quill-video-preview">Preview</div>
+      </div>
+      <div class="actions">
+        <button id="quill-video-cancel" class="btn ghost" type="button">Cancel</button>
+        <button id="quill-video-insert" class="btn primary" type="button">Insert</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- external libraries first, app script last -->
-<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
-<!-- your logic (see app.js) -->
-<script>
-	/* ---------------------------
-   all editor JS (blots, modals, observers, size modal)
-   Drop this file next to index.html
-   --------------------------- */
+  <!-- Link modal (for figure links) -->
+  <div id="quill-link-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="quill-modal" role="document" aria-labelledby="quill-link-modal-title">
+      <h3 id="quill-link-modal-title">Add / Edit link for image or video</h3>
+      <div class="row">
+        <label>URL<input id="quill-link-url" type="text" placeholder="https://example.com/page" /></label>
+      </div>
+      <div class="actions">
+        <button id="quill-link-cancel" class="btn ghost" type="button">Cancel</button>
+        <button id="quill-link-remove" class="btn" type="button">Remove link</button>
+        <button id="quill-link-insert" class="btn primary" type="button">Apply link</button>
+      </div>
+    </div>
+  </div>
 
-/* ---------------------------
-   Setup / Register modules (NO external resize module)
-   --------------------------- */
-const Icons = Quill.import('ui/icons');
-Icons['undo'] = `<svg viewBox="0 0 24 24"><path d="M7 7v4H3M3 11a9 9 0 1 1 3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-Icons['redo'] = `<svg viewBox="0 0 24 24"><path d="M17 7v4h4M21 11a9 9 0 1 0-3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-Icons['hr'] = `<svg viewBox="0 0 24 24" width="16" height="16">
+  <!-- Size modal (for figure width/height) -->
+  <div id="quill-size-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="quill-modal" role="document" aria-labelledby="quill-size-modal-title">
+      <h3 id="quill-size-modal-title">Set size for image / video</h3>
+      <div class="row">
+        <label>Width<input id="quill-size-width" type="text" placeholder="e.g. 320 or 50%" /></label>
+      </div>
+      <div class="row">
+        <label>Height<input id="quill-size-height" type="text" placeholder="e.g. 240 or auto" /></label>
+      </div>
+      <div class="row">
+        <label style="width:50%"><input id="quill-size-lock" type="checkbox" /> Lock aspect ratio</label>
+        <label style="width:50%"><small id="quill-size-intrinsic" style="color:var(--muted)"></small></label>
+      </div>
+      <div class="row">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn" data-preset="25%">25%</button>
+          <button class="btn" data-preset="50%">50%</button>
+          <button class="btn" data-preset="75%">75%</button>
+          <button class="btn" data-preset="100%">100%</button>
+          <button class="btn" data-preset="320px">320px</button>
+          <button class="btn" data-preset="640px">640px</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="quill-size-cancel" class="btn ghost" type="button">Cancel</button>
+        <button id="quill-size-apply" class="btn primary" type="button">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- external libraries first, app script last -->
+  <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
+  <!-- your logic (see app.js) -->
+  <script>
+    /* ---------------------------
+     app.js — all editor JS (blots, modals, observers, size modal)
+     Drop this file next to index.html
+     --------------------------- */
+
+    /* ---------------------------
+       Setup / Register modules (NO external resize module)
+       --------------------------- */
+    const Icons = Quill.import('ui/icons');
+    Icons['undo'] = `<svg viewBox="0 0 24 24"><path d="M7 7v4H3M3 11a9 9 0 1 1 3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    Icons['redo'] = `<svg viewBox="0 0 24 24"><path d="M17 7v4h4M21 11a9 9 0 1 0-3 6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    Icons['hr'] = `<svg viewBox="0 0 24 24" width="16" height="16">
   <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
-if (window.QuillTableBetter) Quill.register({ 'modules/table-better': QuillTableBetter }, true);
+    if (window.QuillTableBetter) Quill.register({ 'modules/table-better': QuillTableBetter }, true);
 
-/* ---------------------------
-   Horizontal rule blot
-   --------------------------- */
-const BlockEmbed = Quill.import('blots/block/embed');
-class HorizontalLineBlot extends BlockEmbed {
-  static create() {
-    const node = super.create();
-    node.setAttribute('contenteditable', false);
-    return node;
-  }
-}
-HorizontalLineBlot.blotName = 'hr';
-HorizontalLineBlot.tagName = 'hr';
-HorizontalLineBlot.className = 'ql-hr';
-Quill.register(HorizontalLineBlot);
-
-/* ---------------------------
-   Caption blot (block)
-   --------------------------- */
-const Block = Quill.import('blots/block');
-class CaptionBlot extends Block {
-  static create(value = '') {
-    const node = super.create();
-    node.setAttribute('contenteditable', true);
-    node.className = 'ql-caption';
-    node.innerText = value || '';
-    return node;
-  }
-  static value(node) {
-    return node.innerText || '';
-  }
-}
-CaptionBlot.blotName = 'caption';
-CaptionBlot.tagName = 'div';
-Quill.register(CaptionBlot);
-
-/* ---------------------------
-   NativeVideoBlot
-   --------------------------- */
-class NativeVideoBlot extends BlockEmbed {
-  static create(value) {
-    const node = super.create();
-    node.setAttribute('contenteditable', false);
-    const url = typeof value === 'string' ? value : (value && value.url) || '';
-    const video = document.createElement('video');
-    video.src = url;
-    video.controls = true;
-    video.playsInline = true;
-    video.style.display = 'block';
-    video.style.maxWidth = '100%';
-    video.style.margin = '0 auto';
-    node.appendChild(video);
-    return node;
-  }
-  static value(node) {
-    const v = node.querySelector('video');
-    return v ? v.getAttribute('src') : '';
-  }
-}
-NativeVideoBlot.blotName = 'nativeVideo';
-NativeVideoBlot.tagName = 'div';
-NativeVideoBlot.className = 'ql-native-video';
-Quill.register(NativeVideoBlot);
-
-/* ---------------------------
-   FigureBlot (image/video + editable caption + link + size)
-   --------------------------- */
-function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
-
-class FigureBlot extends BlockEmbed {
-  static blotName = 'figure';
-  static tagName = 'figure';
-
-  static create(value = {}) {
-    const node = super.create();
-    node.classList.add('custom-figure');
-    node.setAttribute('contenteditable', 'false');
-
-    const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
-    let mediaEl;
-    if (type === 'video') {
-      const video = document.createElement('video');
-      video.controls = true;
-      video.playsInline = true;
-      const source = document.createElement('source');
-      source.src = value.url || '';
-      video.appendChild(source);
-      mediaEl = video;
-    } else {
-      const img = document.createElement('img');
-      img.src = value.url || '';
-      img.alt = value.caption || '';
-      img.setAttribute('draggable', 'false');
-      mediaEl = img;
-    }
-
-    // if a link is provided, wrap media in anchor
-    if (value.link && value.link.href) {
-      const a = document.createElement('a');
-      a.href = value.link.href;
-      if (value.link.target) a.target = value.link.target;
-      if (value.link.rel) a.rel = value.link.rel;
-      a.setAttribute('data-figure-link', '1');
-      a.appendChild(mediaEl);
-      node.appendChild(a);
-    } else {
-      node.appendChild(mediaEl);
-    }
-
-    const caption = document.createElement('figcaption');
-    caption.setAttribute('contenteditable', 'true');
-    caption.className = 'ql-caption';
-    caption.innerText = value.caption || '';
-    node.appendChild(caption);
-
-    // apply size if provided
-    if (value.width) node.style.width = value.width;
-    if (value.height) node.style.height = value.height;
-
-    if (value.align) {
-      node.classList.remove('align-left','align-center','align-right');
-      node.classList.add('align-' + value.align);
-    }
-
-    return node;
-  }
-
-  static value(node) {
-    const media = node.querySelector('img,video');
-    const caption = node.querySelector('figcaption');
-    let url = '';
-    let type = 'image';
-    if (media) {
-      if (media.tagName.toLowerCase() === 'video') {
-        const src = media.querySelector('source')?.getAttribute('src') || media.getAttribute('src') || '';
-        url = src;
-        type = 'video';
-      } else {
-        url = media.getAttribute('src') || '';
-        type = 'image';
+    /* ---------------------------
+       Horizontal rule blot
+       --------------------------- */
+    const BlockEmbed = Quill.import('blots/block/embed');
+    class HorizontalLineBlot extends BlockEmbed {
+      static create() {
+        const node = super.create();
+        node.setAttribute('contenteditable', false);
+        return node;
       }
     }
+    HorizontalLineBlot.blotName = 'hr';
+    HorizontalLineBlot.tagName = 'hr';
+    HorizontalLineBlot.className = 'ql-hr';
+    Quill.register(HorizontalLineBlot);
 
-    // link extraction (if media is wrapped in anchor)
-    let link = null;
-    const anchor = node.querySelector('a[data-figure-link]') || (media && media.closest && media.closest('a'));
-    if (anchor) {
-      link = { href: anchor.getAttribute('href') || '', target: anchor.getAttribute('target') || '', rel: anchor.getAttribute('rel') || '' };
-    }
-
-    const width = node.style.width || '';
-    const height = node.style.height || '';
-    const align = (node.classList.contains('align-left') && 'left') ||
-                  (node.classList.contains('align-right') && 'right') || 'center';
-    return { url, type, caption: (caption ? caption.innerText : ''), width, height, align, link };
-  }
-}
-Quill.register(FigureBlot);
-
-/* ---------------------------
-   Initialize Quill editor (no imageResize/videoResize modules)
-   --------------------------- */
-const editor = new Quill('#root', {
-  theme: 'snow',
-  placeholder: 'Start writing your content...',
-  modules: {
-    toolbar: {
-      container: [
-        ['bold','italic','underline','strike'],
-        ['blockquote','code-block'],
-        [{ 'header': 1 }, { 'header': 2 }],
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
-        [{ 'script': 'sub'}, { 'script': 'super' }],
-        [{ 'indent': '-1'},{ 'indent': '+1' }],
-        [{ 'direction': 'rtl' }],
-        [{ 'align': [] }],
-        [{ 'size': ['small', false, 'large', 'huge'] }],
-        [{ 'color': [] }, { 'background': [] }],
-        [{ 'font': [] }],
-        ['link','image','video','hr'],
-        ['table-better'],
-        ['clean'],
-        ['undo','redo']
-      ],
-      handlers: {
-        undo: () => editor.history.undo(),
-        redo: () => editor.history.redo()
+    /* ---------------------------
+       Caption blot (block)
+       --------------------------- */
+    const Block = Quill.import('blots/block');
+    class CaptionBlot extends Block {
+      static create(value = '') {
+        const node = super.create();
+        node.setAttribute('contenteditable', true);
+        node.className = 'ql-caption';
+        node.innerText = value || '';
+        return node;
       }
-    },
-    history: { delay: 1000, maxStack: 500, userOnly: true },
-    'table-better': { toolbarTable: true, menus: ['column','row','merge','table','cell','wrap','copy','delete'] },
-    keyboard: { bindings: window.QuillTableBetter ? QuillTableBetter.keyboardBindings : {} }
-  }
-});
-
-window.__quill = editor;
-
-/* ---------------------------
-   Character count
-   --------------------------- */
-const charCountEl = document.getElementById('char-count');
-function updateCharCount() {
-  const text = editor.getText().replace(/\n$/, '');
-  charCountEl.textContent = `Characters: ${text.length}`;
-}
-updateCharCount();
-editor.on('text-change', updateCharCount);
-
-/* ---------------------------
-   Helpers & dedupe store & url utility
-   --------------------------- */
-const recentInserts = new Map();
-const RECENT_TTL = 3000;
-function markInserted(key) { if (!key) return; recentInserts.set(key, Date.now()); setTimeout(() => recentInserts.delete(key), RECENT_TTL + 200); }
-function wasRecentlyInserted(key) { if (!key) return false; const t = recentInserts.get(key); return t && (Date.now() - t) < RECENT_TTL; }
-function normalizeUrl(u) { try { const url = new URL(u, location.href); url.hash = ''; return url.toString(); } catch (err) { return String(u).trim(); } }
-function urlLooksLikeImage(url) { return /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url); }
-
-/* ---------------------------
-   Blob tracker and cleanup
-   --------------------------- */
-const blobUrlTracker = new Set();
-const domCleanupObserver = new MutationObserver((mutations) => {
-  for (const m of mutations) {
-    for (const node of m.removedNodes) {
-      if (node.nodeType !== 1) continue;
-      const videos = node.tagName === 'VIDEO' ? [node] : Array.from(node.querySelectorAll('video'));
-      for (const v of videos) {
-        try {
-          const s = v.src || '';
-          if (s && s.startsWith('blob:') && blobUrlTracker.has(s)) {
-            try { URL.revokeObjectURL(s); } catch(e){}
-            blobUrlTracker.delete(s);
-          }
-        } catch (e) {}
+      static value(node) {
+        return node.innerText || '';
       }
     }
-  }
-});
-domCleanupObserver.observe(document.querySelector('#root'), { childList: true, subtree: true });
+    CaptionBlot.blotName = 'caption';
+    CaptionBlot.tagName = 'div';
+    Quill.register(CaptionBlot);
 
-/* ---------------------------
-   Clipboard matchers -> insert FigureBlot
-   --------------------------- */
-try {
-  const Clipboard = editor.getModule('clipboard');
-  if (Clipboard && Clipboard.addMatcher) {
-    const Delta = Quill.import('delta');
-
-    Clipboard.addMatcher('IMG', (node, delta) => {
-      if (window.__suppressDropInserts) return new Delta();
-
-      const src = node.getAttribute('src') || '';
-      if (!src) return delta;
-      const key = normalizeUrl(src);
-      if (wasRecentlyInserted(key)) return new Delta();
-      markInserted(key);
-      return new Delta().insert({ figure: { url: src, type: 'image', caption: '' } }).insert('\n');
-    });
-
-    Clipboard.addMatcher('VIDEO', (node, delta) => {
-      if (window.__suppressDropInserts) return new Delta();
-
-      const src = node.getAttribute('src') || (node.querySelector('source') && node.querySelector('source').getAttribute('src')) || '';
-      if (!src) return delta;
-      const key = normalizeUrl(src);
-      if (wasRecentlyInserted(key)) return new Delta();
-      markInserted(key);
-      return new Delta().insert({ figure: { url: src, type: 'video', caption: '' } }).insert('\n');
-    });
-  }
-} catch (e) { /* ignore */ }
-
-/* ---------------------------
-   attachMediaResizeSync (uses ResizeObserver)
-   --------------------------- */
-function attachMediaResizeSync(mediaEl, containerEl) {
-  if (!mediaEl) return;
-  const target = containerEl || mediaEl;
-  if (target.__mediaResizeAttached) return;
-  target.__mediaResizeAttached = true;
-
-  if (typeof target.__mediaResizeApplying === 'undefined') target.__mediaResizeApplying = false;
-
-  const applyCaptionWidth = (widthPx) => {
-    try {
-      let next = mediaEl.nextSibling;
-      while (next && next.nodeType !== 1) next = next.nextSibling;
-      if (next && next.classList && next.classList.contains('ql-caption')) {
-        next.style.width = '100%';
-        next.style.maxWidth = '100%';
-        next.style.marginLeft = next.style.marginRight = 'auto';
-        next.style.boxSizing = 'border-box';
+    /* ---------------------------
+       NativeVideoBlot
+       --------------------------- */
+    class NativeVideoBlot extends BlockEmbed {
+      static create(value) {
+        const node = super.create();
+        node.setAttribute('contenteditable', false);
+        const url = typeof value === 'string' ? value : (value && value.url) || '';
+        const video = document.createElement('video');
+        video.src = url;
+        video.controls = true;
+        video.playsInline = true;
+        video.style.display = 'block';
+        video.style.maxWidth = '100%';
+        video.style.margin = '0 auto';
+        node.appendChild(video);
+        return node;
       }
-    } catch (err) { }
-  };
-
-  const sync = () => {
-    try {
-      if (target.__mediaResizeApplying) return;
-      const rectSource = (target.getBoundingClientRect && target.getBoundingClientRect()) ||
-                         (mediaEl.getBoundingClientRect && mediaEl.getBoundingClientRect()) || { width: 0 };
-      let widthPx = Math.round(rectSource.width || 0);
-
-      if (!widthPx || widthPx === 0) {
-        const cs = window.getComputedStyle(mediaEl);
-        widthPx = parseInt(cs.width, 10) || 0;
+      static value(node) {
+        const v = node.querySelector('video');
+        return v ? v.getAttribute('src') : '';
       }
-
-      if (!widthPx || widthPx <= 0) {
-        if (target.style.width && target.style.width !== 'auto') {
-          target.style.width = 'auto';
-        }
-        applyCaptionWidth(widthPx);
-        return;
-      }
-
-      const current = parseInt((target.style.width || '').replace('px', ''), 10) || 0;
-      if (current === widthPx) {
-        applyCaptionWidth(widthPx);
-        return;
-      }
-
-      target.__mediaResizeApplying = true;
-      try {
-        target.style.width = widthPx + 'px';
-        target.style.maxWidth = '100%';
-      } finally {
-        requestAnimationFrame(() => { target.__mediaResizeApplying = false; });
-      }
-
-      applyCaptionWidth(widthPx);
-    } catch (err) { }
-  };
-
-  const ro = new ResizeObserver(sync);
-  try { ro.observe(target); } catch (e) {}
-  try { if (mediaEl !== target) ro.observe(mediaEl); } catch (e) {}
-
-  const mo = new MutationObserver(sync);
-  try { mo.observe(mediaEl, { attributes: true, attributeFilter: ['style', 'class', 'width', 'src'] }); } catch (e) {}
-
-  target.__mediaResizeObserver = ro;
-  target.__mediaMutationObserver = mo;
-
-  requestAnimationFrame(sync);
-}
-
-/* ---------------------------
-   Attach observers + wrap media into figure.custom-figure
-   --------------------------- */
-function attachObserversToAllFigures(root = document) {
-  (root || document).querySelectorAll('img, video').forEach(media => {
-    try {
-      const src = media.currentSrc || media.getAttribute && media.getAttribute('src') || '';
-      if (src && wasRecentlyInserted(normalizeUrl(src))) {
-        return;
-      }
-      if (!media.closest('#root')) return;
-      if (media.closest('figure.custom-figure')) {
-        attachMediaResizeSync(media, media.closest('figure.custom-figure'));
-        return;
-      }
-
-      let next = media.nextSibling;
-      while (next && next.nodeType !== 1) next = next.nextSibling;
-      const hasCaption = next && next.classList && next.classList.contains('ql-caption');
-
-      const figure = document.createElement('figure');
-      figure.className = 'custom-figure align-center';
-      figure.setAttribute('contenteditable','false');
-
-      const cs = window.getComputedStyle(media);
-      const computedWidth = parseInt(cs.width, 10);
-      if (computedWidth && computedWidth > 20) figure.style.width = computedWidth + 'px';
-
-      const parent = media.parentElement;
-      if (!parent) return;
-      parent.insertBefore(figure, media);
-
-      // if media is already inside an anchor, keep anchor
-      const anchor = media.closest && media.closest('a');
-      if (anchor && anchor.getAttribute && anchor.getAttribute('href')) {
-        anchor.setAttribute('data-figure-link', '1');
-        figure.appendChild(anchor);
-      } else {
-        figure.appendChild(media);
-      }
-
-      if (hasCaption) {
-        figure.appendChild(next);
-      } else {
-        const caption = document.createElement('figcaption');
-        caption.className = 'ql-caption';
-        caption.setAttribute('contenteditable','true');
-        caption.innerText = '';
-        figure.appendChild(caption);
-      }
-
-      attachControls(figure);
-      const innerMedia = figure.querySelector('img,video');
-      if (innerMedia) attachMediaResizeSync(innerMedia, figure);
-
-    } catch (e) { }
-  });
-
-  (root || document).querySelectorAll('figure.custom-figure img, figure.custom-figure video').forEach(media => {
-    try { attachMediaResizeSync(media, media.closest('figure.custom-figure')); } catch(e) {}
-  });
-}
-
-attachObserversToAllFigures();
-editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
-
-/* ---------------------------
-   Modal UI logic (insert FigureBlot)
-   --------------------------- */
-function wireModal(opts) {
-  const overlay = document.getElementById(opts.overlayId);
-  const urlInput = document.getElementById(opts.urlId);
-  const fileInput = document.getElementById(opts.fileId);
-  const captionInput = document.getElementById(opts.captionId);
-  const preview = document.getElementById(opts.previewId);
-  const btnCancel = document.getElementById(opts.cancelId);
-  const btnInsert = document.getElementById(opts.insertId);
-
-  let selectedDataUrl = null; let lastSelectionIndex = 0;
-  function openModal() {
-    lastSelectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
-    urlInput.value = ''; fileInput.value = ''; captionInput.value = ''; selectedDataUrl = null;
-    preview.innerHTML = 'Preview';
-    overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(()=> urlInput.focus(), 50);
-  }
-  function closeModal() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true'); urlInput.value=''; fileInput.value=''; captionInput.value=''; selectedDataUrl = null; editor.focus(); }
-  function updatePreview() { const url = urlInput.value.trim(); const src = selectedDataUrl || url; if (!src) { preview.innerHTML = 'Preview'; return; } preview.innerHTML = ''; if (opts.type === 'image') { const img = document.createElement('img'); img.src = src; img.alt = captionInput.value || 'Preview image'; preview.appendChild(img); } else { const video = document.createElement('video'); video.controls = true; video.src = src; video.playsInline = true; preview.appendChild(video); } }
-
-  fileInput.addEventListener('change', (ev) => {
-    const file = ev.target.files && ev.target.files[0]; if (!file) return;
-    if (opts.type === 'image') {
-      const reader = new FileReader(); reader.onload = (e) => { selectedDataUrl = e.target.result; urlInput.value=''; updatePreview(); }; reader.readAsDataURL(file);
-    } else {
-      try { const blobUrl = URL.createObjectURL(file); selectedDataUrl = blobUrl; urlInput.value=''; updatePreview(); } catch (err) { const reader = new FileReader(); reader.onload = (e) => { selectedDataUrl = e.target.result; urlInput.value=''; updatePreview(); }; reader.readAsDataURL(file); }
     }
-  });
+    NativeVideoBlot.blotName = 'nativeVideo';
+    NativeVideoBlot.tagName = 'div';
+    NativeVideoBlot.className = 'ql-native-video';
+    Quill.register(NativeVideoBlot);
 
-  urlInput.addEventListener('input', () => { selectedDataUrl = null; updatePreview(); });
-  captionInput.addEventListener('input', updatePreview);
-  btnCancel.addEventListener('click', closeModal);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
-  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } if (e.key === 'Enter') { if (document.activeElement === fileInput) return; e.preventDefault(); btnInsert.click(); } });
+    /* ---------------------------
+       FigureBlot (image/video + editable caption + link + size)
+       --------------------------- */
+    function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
 
-  btnInsert.addEventListener('click', () => {
-    const url = urlInput.value.trim(); const finalSrc = selectedDataUrl || url; const caption = captionInput.value.trim();
-    if (!finalSrc) { preview.innerHTML = '<span style="color:#cc0000">Please provide a URL or upload a file.</span>'; urlInput.focus(); return; }
+    class FigureBlot extends BlockEmbed {
+      static blotName = 'figure';
+      static tagName = 'figure';
 
-    const index = Math.max(0, lastSelectionIndex);
-    const type = opts.type === 'video' || urlLooksLikeVideo(finalSrc) ? 'video' : 'image';
-    editor.insertEmbed(index, 'figure', { url: finalSrc, type, caption: caption || '', width: '', height: '', align: 'center' }, Quill.sources.USER);
-    editor.insertText(index + 1, '\n', Quill.sources.SILENT);
-    editor.setSelection(index + 2, 0, Quill.sources.SILENT);
-    setTimeout(() => attachObserversToAllFigures(), 60);
-    markInserted(normalizeUrl(finalSrc));
-    closeModal();
-    return;
-  });
+      static create(value = {}) {
+        const node = super.create();
+        node.classList.add('custom-figure');
+        node.setAttribute('contenteditable', 'false');
 
-  return { open: openModal };
-}
-
-const imageModal = wireModal({
-  overlayId: 'quill-image-modal-overlay',
-  urlId: 'quill-image-url',
-  fileId: 'quill-image-file',
-  captionId: 'quill-image-caption',
-  previewId: 'quill-image-preview',
-  cancelId: 'quill-image-cancel',
-  insertId: 'quill-image-insert',
-  type: 'image',
-});
-const videoModal = wireModal({
-  overlayId: 'quill-video-modal-overlay',
-  urlId: 'quill-video-url',
-  fileId: 'quill-video-file',
-  captionId: 'quill-video-caption',
-  previewId: 'quill-video-preview',
-  cancelId: 'quill-video-cancel',
-  insertId: 'quill-video-insert',
-  type: 'video'
-});
-
-/* ---------------------------
-   Link modal (for figure links)
-   --------------------------- */
-function wireLinkModal() {
-  const overlay = document.getElementById('quill-link-modal-overlay');
-  const urlInput = document.getElementById('quill-link-url');
-  const btnCancel = document.getElementById('quill-link-cancel');
-  const btnInsert = document.getElementById('quill-link-insert');
-  const btnRemove = document.getElementById('quill-link-remove');
-
-  let currentFigure = null;
-
-  function openModalForFigure(fig) {
-    currentFigure = fig;
-    // prefill
-    const val = FigureBlot.value(fig);
-    const link = val.link || { href: '', target: '', rel: '' };
-    urlInput.value = link.href || '';
-    overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(()=> urlInput.focus(), 50);
-  }
-  function close() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true'); urlInput.value=''; currentFigure = null; editor.focus(); }
-
-  btnCancel.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === urlInput) { e.preventDefault(); btnInsert.click(); } } });
-
-  function applyLinkToFigure(fig, linkObj) {
-    if (!fig) return;
-    try {
-      // ensure media exists
-      const media = fig.querySelector('img,video');
-      if (!media) return;
-
-      // remove old anchor
-      const existingAnchor = fig.querySelector('a[data-figure-link]') || (media.closest && media.closest('a'));
-      if (linkObj && linkObj.href) {
-        // create/update anchor
-        let anchor;
-        if (existingAnchor) {
-          anchor = existingAnchor;
-          anchor.setAttribute('href', linkObj.href);
-          if (linkObj.target) anchor.setAttribute('target', linkObj.target); else anchor.removeAttribute('target');
-          if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel); else anchor.removeAttribute('rel');
-          // ensure media is inside anchor
-          if (anchor !== media.parentElement) {
-            anchor.appendChild(media);
-          }
+        const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
+        let mediaEl;
+        if (type === 'video') {
+          const video = document.createElement('video');
+          video.controls = true;
+          video.playsInline = true;
+          const source = document.createElement('source');
+          source.src = value.url || '';
+          video.appendChild(source);
+          mediaEl = video;
         } else {
-          anchor = document.createElement('a');
-          anchor.setAttribute('data-figure-link', '1');
-          anchor.setAttribute('href', linkObj.href);
-          if (linkObj.target) anchor.setAttribute('target', linkObj.target);
-          if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel);
-          // move media into anchor
-          fig.insertBefore(anchor, media);
-          anchor.appendChild(media);
+          const img = document.createElement('img');
+          img.src = value.url || '';
+          img.alt = value.caption || '';
+          img.setAttribute('draggable', 'false');
+          mediaEl = img;
         }
-      } else {
-        // remove anchor if present
-        if (existingAnchor) {
-          // move media out and remove anchor
-          if (existingAnchor.contains(media)) {
-            existingAnchor.parentElement.insertBefore(media, existingAnchor);
+
+        // if a link is provided, wrap media in anchor
+        if (value.link && value.link.href) {
+          const a = document.createElement('a');
+          a.href = value.link.href;
+          if (value.link.target) a.target = value.link.target;
+          if (value.link.rel) a.rel = value.link.rel;
+          a.setAttribute('data-figure-link', '1');
+          a.appendChild(mediaEl);
+          node.appendChild(a);
+        } else {
+          node.appendChild(mediaEl);
+        }
+
+        const caption = document.createElement('figcaption');
+        caption.setAttribute('contenteditable', 'true');
+        caption.className = 'ql-caption';
+        caption.innerText = value.caption || '';
+        node.appendChild(caption);
+
+        // apply size if provided
+        if (value.width) node.style.width = value.width;
+        if (value.height) node.style.height = value.height;
+
+        if (value.align) {
+          node.classList.remove('align-left', 'align-center', 'align-right');
+          node.classList.add('align-' + value.align);
+        }
+
+        return node;
+      }
+
+      static value(node) {
+        const media = node.querySelector('img,video');
+        const caption = node.querySelector('figcaption');
+        let url = '';
+        let type = 'image';
+        if (media) {
+          if (media.tagName.toLowerCase() === 'video') {
+            const src = media.querySelector('source')?.getAttribute('src') || media.getAttribute('src') || '';
+            url = src;
+            type = 'video';
+          } else {
+            url = media.getAttribute('src') || '';
+            type = 'image';
           }
-          existingAnchor.remove();
+        }
+
+        // link extraction (if media is wrapped in anchor)
+        let link = null;
+        const anchor = node.querySelector('a[data-figure-link]') || (media && media.closest && media.closest('a'));
+        if (anchor) {
+          link = { href: anchor.getAttribute('href') || '', target: anchor.getAttribute('target') || '', rel: anchor.getAttribute('rel') || '' };
+        }
+
+        const width = node.style.width || '';
+        const height = node.style.height || '';
+        const align = (node.classList.contains('align-left') && 'left') ||
+          (node.classList.contains('align-right') && 'right') || 'center';
+        return { url, type, caption: (caption ? caption.innerText : ''), width, height, align, link };
+      }
+    }
+    Quill.register(FigureBlot);
+
+    /* ---------------------------
+       Initialize Quill editor (no imageResize/videoResize modules)
+       --------------------------- */
+    const editor = new Quill('#root', {
+      theme: 'snow',
+      placeholder: 'Start writing your content...',
+      modules: {
+        toolbar: {
+          container: [
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'header': 1 }, { 'header': 2 }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
+            [{ 'script': 'sub' }, { 'script': 'super' }],
+            [{ 'indent': '-1' }, { 'indent': '+1' }],
+            [{ 'direction': 'rtl' }],
+            [{ 'align': [] }],
+            [{ 'size': ['small', false, 'large', 'huge'] }],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'font': [] }],
+            ['link', 'image', 'video', 'hr'],
+            ['table-better'],
+            ['clean'],
+            ['undo', 'redo']
+          ],
+          handlers: {
+            undo: () => editor.history.undo(),
+            redo: () => editor.history.redo()
+          }
+        },
+        history: { delay: 1000, maxStack: 500, userOnly: true },
+        'table-better': { toolbarTable: true, menus: ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'copy', 'delete'] },
+        keyboard: { bindings: window.QuillTableBetter ? QuillTableBetter.keyboardBindings : {} }
+      }
+    });
+
+    window.__quill = editor;
+
+    /* ---------------------------
+       Character count
+       --------------------------- */
+    const charCountEl = document.getElementById('char-count');
+    function updateCharCount() {
+      const text = editor.getText().replace(/\n$/, '');
+      charCountEl.textContent = `Characters: ${text.length}`;
+    }
+    updateCharCount();
+    editor.on('text-change', updateCharCount);
+
+    /* ---------------------------
+       Helpers & dedupe store & url utility
+       --------------------------- */
+    const recentInserts = new Map();
+    const RECENT_TTL = 3000;
+    function markInserted(key) { if (!key) return; recentInserts.set(key, Date.now()); setTimeout(() => recentInserts.delete(key), RECENT_TTL + 200); }
+    function wasRecentlyInserted(key) { if (!key) return false; const t = recentInserts.get(key); return t && (Date.now() - t) < RECENT_TTL; }
+    function normalizeUrl(u) { try { const url = new URL(u, location.href); url.hash = ''; return url.toString(); } catch (err) { return String(u).trim(); } }
+    function urlLooksLikeImage(url) { return /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url); }
+
+    /* ---------------------------
+       Blob tracker and cleanup
+       --------------------------- */
+    const blobUrlTracker = new Set();
+    const domCleanupObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.removedNodes) {
+          if (node.nodeType !== 1) continue;
+          const videos = node.tagName === 'VIDEO' ? [node] : Array.from(node.querySelectorAll('video'));
+          for (const v of videos) {
+            try {
+              const s = v.src || '';
+              if (s && s.startsWith('blob:') && blobUrlTracker.has(s)) {
+                try { URL.revokeObjectURL(s); } catch (e) { }
+                blobUrlTracker.delete(s);
+              }
+            } catch (e) { }
+          }
         }
       }
+    });
+    domCleanupObserver.observe(document.querySelector('#root'), { childList: true, subtree: true });
 
-      // update blot value
-      const blot = Quill.find(fig);
-      if (blot) {
-        const idx = editor.getIndex(blot);
-        const val = FigureBlot.value(fig);
-        editor.deleteText(idx, 1, Quill.sources.SILENT);
-        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-      }
-    } catch (err) { console.warn('applyLinkToFigure failed', err); }
-  }
-
-  btnInsert.addEventListener('click', () => {
-    const href = (urlInput.value || '').trim();
-    if (!href) { urlInput.focus(); return; }
-    const linkObj = { href, target: '_blank' , rel: 'noopener noreferrer' };
-    applyLinkToFigure(currentFigure, linkObj);
-    close();
-  });
-
-  btnRemove.addEventListener('click', () => {
-    applyLinkToFigure(currentFigure, null);
-    close();
-  });
-
-  return { openForFigure: openModalForFigure };
-}
-const linkModal = wireLinkModal();
-
-/* ---------------------------
-   Size modal (for setting width/height) 
-   - user-friendly presets
-   - lock aspect ratio
-   - stores width & height on blot
-   --------------------------- */
-function wireSizeModal() {
-  const overlay = document.getElementById('quill-size-modal-overlay');
-  const widthInput = document.getElementById('quill-size-width');
-  const heightInput = document.getElementById('quill-size-height');
-  const lockCheckbox = document.getElementById('quill-size-lock');
-  const intrinsicEl = document.getElementById('quill-size-intrinsic');
-  const btnCancel = document.getElementById('quill-size-cancel');
-  const btnApply = document.getElementById('quill-size-apply');
-  const presetBtns = overlay.querySelectorAll('[data-preset]');
-
-  let currentFigure = null;
-  let intrinsic = { w: 0, h: 0, ratio: 1 };
-
-  function parseSizeInput(val) {
-    if (!val) return null;
-    val = String(val).trim();
-    if (val === 'auto') return 'auto';
-    if (val.endsWith('%')) return val;
-    if (val.endsWith('px')) return val;
-    // number assumed px
-    if (/^\d+$/.test(val)) return val + 'px';
-    return val; // return raw if weird
-  }
-
-  function openForFigure(fig) {
-    currentFigure = fig;
-    const val = FigureBlot.value(fig);
-    // try to determine intrinsic size from media
-    const media = fig.querySelector('img,video');
-    intrinsic = { w: 0, h: 0, ratio: 1 };
-    if (media) {
-      if (media.tagName.toLowerCase() === 'img') {
-        intrinsic.w = media.naturalWidth || 0;
-        intrinsic.h = media.naturalHeight || 0;
-      } else if (media.tagName.toLowerCase() === 'video') {
-        intrinsic.w = media.videoWidth || media.clientWidth || 0;
-        intrinsic.h = media.videoHeight || media.clientHeight || 0;
-      }
-      intrinsic.ratio = (intrinsic.h && intrinsic.w) ? (intrinsic.w / intrinsic.h) : 1;
-    }
-
-    intrinsicEl.textContent = intrinsic.w && intrinsic.h ? `Intrinsic: ${intrinsic.w}×${intrinsic.h}` : '';
-
-    widthInput.value = val.width || '';
-    heightInput.value = val.height || '';
-    lockCheckbox.checked = true;
-
-    // wire lock behaviour: when width changes and lock is checked, update height accordingly
-    widthInput.oninput = () => {
-      if (!lockCheckbox.checked) return;
-      const w = parseSizeInput(widthInput.value);
-      if (!w) return;
-      // handle percent -> can't compute absolute height reliably; keep height blank
-      if (typeof w === 'string' && w.endsWith('%')) { heightInput.value = ''; return; }
-      const px = parseInt(String(w).replace('px',''),10);
-      if (!px || !intrinsic.ratio) return;
-      const newH = Math.round(px / intrinsic.ratio);
-      heightInput.value = newH + 'px';
-    };
-    heightInput.oninput = () => {
-      if (!lockCheckbox.checked) return;
-      const h = parseSizeInput(heightInput.value);
-      if (!h) return;
-      if (typeof h === 'string' && h.endsWith('%')) { widthInput.value = ''; return; }
-      const ph = parseInt(String(h).replace('px',''),10);
-      if (!ph || !intrinsic.ratio) return;
-      const newW = Math.round(ph * intrinsic.ratio);
-      widthInput.value = newW + 'px';
-    };
-
-    presetBtns.forEach(btn => btn.addEventListener('click', presetHandler));
-
-    overlay.classList.add('active'); overlay.setAttribute('aria-hidden','false');
-    setTimeout(()=> widthInput.focus(), 50);
-  }
-
-  function presetHandler(ev) {
-    const p = ev.currentTarget.getAttribute('data-preset');
-    widthInput.value = p;
-    // simulate input
-    widthInput.dispatchEvent(new Event('input'));
-  }
-
-  function close() {
-    presetBtns.forEach(btn => btn.removeEventListener('click', presetHandler));
-    overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true');
-    widthInput.value=''; heightInput.value=''; lockCheckbox.checked=false; intrinsicEl.textContent=''; currentFigure=null;
-    editor.focus();
-  }
-
-  btnCancel.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === widthInput || document.activeElement === heightInput) { e.preventDefault(); btnApply.click(); } } });
-
-  btnApply.addEventListener('click', () => {
-    if (!currentFigure) return;
-    const w = parseSizeInput(widthInput.value);
-    const h = parseSizeInput(heightInput.value);
-
+    /* ---------------------------
+       Clipboard matchers -> insert FigureBlot
+       --------------------------- */
     try {
-      if (w) currentFigure.style.width = w;
-      else currentFigure.style.removeProperty('width');
-      if (h && h !== 'auto') currentFigure.style.height = h;
-      else currentFigure.style.removeProperty('height');
+      const Clipboard = editor.getModule('clipboard');
+      if (Clipboard && Clipboard.addMatcher) {
+        const Delta = Quill.import('delta');
 
-      // update blot
-      const blot = Quill.find(currentFigure);
-      if (blot) {
-        const idx = editor.getIndex(blot);
-        const val = FigureBlot.value(currentFigure);
-        val.width = currentFigure.style.width || '';
-        val.height = currentFigure.style.height || '';
-        editor.deleteText(idx, 1, Quill.sources.SILENT);
-        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+        Clipboard.addMatcher('IMG', (node, delta) => {
+          if (window.__suppressDropInserts) return new Delta();
+
+          const src = node.getAttribute('src') || '';
+          if (!src) return delta;
+          const key = normalizeUrl(src);
+          if (wasRecentlyInserted(key)) return new Delta();
+          markInserted(key);
+          return new Delta().insert({ figure: { url: src, type: 'image', caption: '' } }).insert('\n');
+        });
+
+        Clipboard.addMatcher('VIDEO', (node, delta) => {
+          if (window.__suppressDropInserts) return new Delta();
+
+          const src = node.getAttribute('src') || (node.querySelector('source') && node.querySelector('source').getAttribute('src')) || '';
+          if (!src) return delta;
+          const key = normalizeUrl(src);
+          if (wasRecentlyInserted(key)) return new Delta();
+          markInserted(key);
+          return new Delta().insert({ figure: { url: src, type: 'video', caption: '' } }).insert('\n');
+        });
       }
-    } catch (err) {
-      console.warn('apply size failed', err);
-    }
+    } catch (e) { /* ignore */ }
 
-    close();
-  });
+    /* ---------------------------
+       attachMediaResizeSync (uses ResizeObserver)
+       --------------------------- */
+    function attachMediaResizeSync(mediaEl, containerEl) {
+      if (!mediaEl) return;
+      const target = containerEl || mediaEl;
+      if (target.__mediaResizeAttached) return;
+      target.__mediaResizeAttached = true;
 
-  return { openForFigure };
-}
-const sizeModal = wireSizeModal();
+      if (typeof target.__mediaResizeApplying === 'undefined') target.__mediaResizeApplying = false;
 
-/* ---------------------------
-   Toolbar handlers
-   --------------------------- */
-const toolbar = editor.getModule('toolbar');
-if (toolbar) {
-  toolbar.addHandler('image', () => imageModal.open());
-  toolbar.addHandler('video', () => videoModal.open());
-  toolbar.addHandler('hr', () => {
-    const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
-    editor.insertEmbed(range.index, 'hr', true, Quill.sources.USER);
-    editor.insertText(range.index + 1, '\n', Quill.sources.SILENT);
-    editor.setSelection(range.index + 2, 0, Quill.sources.SILENT);
-  });
+      const applyCaptionWidth = (widthPx) => {
+        try {
+          let next = mediaEl.nextSibling;
+          while (next && next.nodeType !== 1) next = next.nextSibling;
+          if (next && next.classList && next.classList.contains('ql-caption')) {
+            next.style.width = '100%';
+            next.style.maxWidth = '100%';
+            next.style.marginLeft = next.style.marginRight = 'auto';
+            next.style.boxSizing = 'border-box';
+          }
+        } catch (err) { }
+      };
 
-  // custom link handler: if a figure is selected or caret inside a figure, open figure-link modal
-  toolbar.addHandler('link', () => {
-    // try detect figure under selection
-    const sel = window.getSelection && window.getSelection();
-    let node = sel && sel.anchorNode;
-    if (!node) return;
-    const fig = node.closest && node.closest('figure.custom-figure');
-    if (fig) {
-      // open modal for this figure
-      linkModal.openForFigure(fig);
-      return;
-    }
+      const sync = () => {
+        try {
+          if (target.__mediaResizeApplying) return;
+          const rectSource = (target.getBoundingClientRect && target.getBoundingClientRect()) ||
+            (mediaEl.getBoundingClientRect && mediaEl.getBoundingClientRect()) || { width: 0 };
+          let widthPx = Math.round(rectSource.width || 0);
 
-    // fallback to default text link prompt
-    const range = editor.getSelection();
-    const url = prompt('Enter the URL for selected text');
-    if (url) {
-      editor.format('link', url, Quill.sources.USER);
-    }
-  });
-}
+          if (!widthPx || widthPx === 0) {
+            const cs = window.getComputedStyle(mediaEl);
+            widthPx = parseInt(cs.width, 10) || 0;
+          }
 
-/* ---------------------------
-   Tooltip system (unchanged)
-   --------------------------- */
-const TOOLTIP_MAP = { bold: 'Bold (Ctrl+B)', italic: 'Italic (Ctrl+I)', underline: 'Underline (Ctrl+U)', strike: 'Strikethrough', blockquote: 'Blockquote', 'code-block': 'Code block', 'header:1': 'Heading 1','header:2': 'Heading 2', 'list:ordered': 'Ordered list', 'list:bullet': 'Bulleted list', 'list:check': 'Checklist','script:sub': 'Subscript', 'script:super': 'Superscript','indent:-1': 'Decrease indent','indent:+1': 'Increase indent','direction:rtl': 'Right-to-left', 'align': 'Alignment', 'size': 'Font size', 'color': 'Text color', 'background': 'Background color','font': 'Font family', link: 'Insert link', image: 'Insert image', video: 'Insert video', formula: 'Insert formula', 'table-better': 'Table tools', clean: 'Remove formatting', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y / Ctrl+Shift+Z)' };
-const tooltipEl = document.createElement('div');
-tooltipEl.className = 'ql-custom-tooltip';
-document.body.appendChild(tooltipEl);
-
-function detectFormatFromNode(node) {
-  if (!node) return null;
-  for (const cls of node.classList) {
-    if (!cls.startsWith('ql-')) continue;
-    const key = cls.slice(3);
-    const val = node.getAttribute('value') || node.getAttribute('data-value');
-    if (val !== null && val !== undefined && val !== '') return `${key}:${val}`;
-    return key;
-  }
-  const picker = node.closest && node.closest('.ql-picker');
-  if (picker) return 'align';
-  return null;
-}
-
-function getTooltipTextForNode(node) {
-  if (!node) return '';
-  if (node.dataset && node.dataset.tooltip) return node.dataset.tooltip;
-  if (node.getAttribute && node.getAttribute('aria-label')) return node.getAttribute('aria-label');
-  const fmt = detectFormatFromNode(node);
-  if (!fmt) return (node.innerText || '').trim() || '';
-  if (TOOLTIP_MAP[fmt]) return TOOLTIP_MAP[fmt];
-  const [k,v] = fmt.split(':');
-  if (v) {
-    if (k === 'header') return `Heading ${v}`;
-    if (k === 'list') {
-      if (v === 'ordered') return 'Ordered list';
-      if (v === 'bullet') return 'Bulleted list';
-      if (v === 'check') return 'Checklist';
-    }
-    if (k === 'script') return v === 'sub' ? 'Subscript' : 'Superscript';
-    if (k === 'indent') return v === '-1' ? 'Decrease indent' : 'Increase indent';
-  }
-  return k.charAt(0).toUpperCase() + k.slice(1);
-}
-let mouseMoveHandler = null;
-function positionTooltip(target, event) {
-  const rect = target.getBoundingClientRect();
-  tooltipEl.style.left = '0px';
-  tooltipEl.style.top = '0px';
-  const tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight;
-  let left, top;
-  if (event && (event.clientX || event.clientY)) {
-    left = event.clientX - tw/2;
-    top = event.clientY - th - 12;
-  } else {
-    left = rect.left + (rect.width/2) - (tw/2);
-    top = rect.top - th - 10;
-  }
-  const margin = 8;
-  if (left < margin) left = margin;
-  if (left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
-  if (top < margin) top = rect.bottom + 12;
-  tooltipEl.style.left = `${Math.round(left)}px`;
-  tooltipEl.style.top = `${Math.round(top)}px`;
-}
-
-function showTooltip(target, event) {
-  const text = getTooltipTextForNode(target);
-  if (!text) return;
-  tooltipEl.textContent = text;
-  tooltipEl.classList.add('visible');
-  positionTooltip(target, event);
-  mouseMoveHandler = (ev) => positionTooltip(target, ev);
-  document.addEventListener('mousemove', mouseMoveHandler);
-}
-function hideTooltip() {
-  tooltipEl.classList.remove('visible');
-  tooltipEl.textContent = '';
-  if (mouseMoveHandler) {
-    document.removeEventListener('mousemove', mouseMoveHandler);
-    mouseMoveHandler = null;
-  }
-}
-function attachToolbarTooltips() {
-  const toolbarEl = document.querySelector('.ql-toolbar');
-  if (!toolbarEl) return;
-
-  const controls = toolbarEl.querySelectorAll('button, .ql-picker, .ql-picker-label, select, input');
-
-  controls.forEach(ctrl => {
-    if (ctrl.dataset && ctrl.dataset.tooltipBound) return;
-
-    let anc = ctrl.parentElement;
-    let skip = false;
-    while (anc && anc !== toolbarEl) {
-      if (anc.dataset && anc.dataset.tooltipBound) { skip = true; break; }
-      anc = anc.parentElement;
-    }
-    if (skip) return;
-
-    ctrl.dataset.tooltipBound = '1';
-
-    const title = getTooltipTextForNode(ctrl) || '';
-    if (title) {
-      ctrl.dataset.tooltip = title;
-      ctrl.setAttribute('aria-label', title);
-      ctrl.removeAttribute('title');
-    }
-
-    ctrl.addEventListener('mouseenter', (ev) => showTooltip(ctrl, ev));
-    ctrl.addEventListener('mouseleave', hideTooltip);
-    ctrl.addEventListener('click', hideTooltip);
-  });
-}
-
-attachToolbarTooltips();
-const toolbarObserver = new MutationObserver(() => attachToolbarTooltips());
-const tb = document.querySelector('.ql-toolbar');
-if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
-
-/* ---------------------------
-   Drag and drop support (images + native videos) -> inserts FigureBlot
-   --------------------------- */
-const editorCard = document.querySelector('.editor-card');
-const editorRoot = editor.root;
-
-editorRoot.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  editorCard.classList.add("drag-over");
-  editorRoot.classList.add("drag-target");
-});
-
-editorRoot.addEventListener("dragleave", (e) => {
-  editorCard.classList.remove("drag-over");
-  editorRoot.classList.remove("drag-target");
-});
-
-function findExistingMediaElementBySrc(url) {
-  if (!url) return null;
-  const norm = normalizeUrl(url);
-  const imgs = Array.from(editor.root.querySelectorAll('img'));
-  for (const img of imgs) {
-    try {
-      const s = img.currentSrc || img.getAttribute('src') || '';
-      if (!s) continue;
-      if (normalizeUrl(s) === norm) return img;
-    } catch (e) { }
-  }
-  const vids = Array.from(editor.root.querySelectorAll('video'));
-  for (const v of vids) {
-    try {
-      const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
-      if (!s) continue;
-      if (normalizeUrl(s) === norm) return v;
-    } catch (e) { }
-  }
-  return null;
-}
-
-editorRoot.addEventListener("drop", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  editorCard.classList.remove("drag-over");
-  editorRoot.classList.remove("drag-target");
-
-  if (!e.dataTransfer) return;
-
-  const items = Array.from(e.dataTransfer.items || []);
-  const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
-  const fallbackFiles = Array.from(e.dataTransfer.files || []);
-  const realFiles = files.length ? files : fallbackFiles;
-
-  if (!realFiles.length) {
-    return;
-  }
-
-  const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
-  let insertIndex = Math.max(0, selection.index);
-
-  window.__suppressDropInserts = true;
-  const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
-
-  (async () => {
-    for (const file of realFiles) {
-      try {
-        if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
-          (async () => {
-            window.__suppressDropInserts = true;
-            const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
-            try {
-              let finalUrl;
-              if (file.type.startsWith("image/")) {
-                finalUrl = await new Promise((res, rej) => {
-                  const r = new FileReader();
-                  r.onload = (ev) => res(ev.target.result);
-                  r.onerror = rej;
-                  r.readAsDataURL(file);
-                });
-              } else {
-                try {
-                  finalUrl = URL.createObjectURL(file);
-                  blobUrlTracker.add(finalUrl);
-                } catch (err) {
-                  finalUrl = await new Promise((res, rej) => {
-                    const r = new FileReader();
-                    r.onload = (ev) => res(ev.target.result);
-                    r.onerror = rej;
-                    r.readAsDataURL(file);
-                  });
-                }
-              }
-              if (!finalUrl) return;
-              const key = normalizeUrl(finalUrl);
-              markInserted(key);
-
-              const existing = findExistingMediaElementBySrc(finalUrl);
-
-              if (existing) {
-                try {
-                  const fig = existing.closest && existing.closest('figure.custom-figure');
-                  if (fig) {
-                    const media = fig.querySelector('img, video');
-                    if (media) {
-                      if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
-                          (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
-                        if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
-                        else {
-                          const srcEl = media.querySelector('source') || document.createElement('source');
-                          srcEl.src = finalUrl;
-                          if (!media.querySelector('source')) media.appendChild(srcEl);
-                          media.load && media.load();
-                        }
-                        const parentBlot = Quill.find(fig);
-                        if (parentBlot) {
-                          const idx = editor.getIndex(parentBlot);
-                          const val = FigureBlot.value(fig);
-                          editor.deleteText(idx, 1, Quill.sources.SILENT);
-                          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-                        }
-                      }
-                    }
-                    const blot = Quill.find(fig);
-                    if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
-                    clearSuppressionLater();
-                    setTimeout(() => attachObserversToAllFigures(), 60);
-                    return;
-                  }
-                  const blot = Quill.find(existing);
-                  if (blot) {
-                    const idx = editor.getIndex(blot);
-                    const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
-                    editor.deleteText(idx, 1, Quill.sources.SILENT);
-                    editor.insertEmbed(idx, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
-                    editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
-                    editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
-                    clearSuppressionLater();
-                    setTimeout(() => attachObserversToAllFigures(), 60);
-                    return;
-                  }
-                } catch (err) {
-                  console.warn('existing-media convert failed', err);
-                }
-              }
-
-              const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
-              const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
-              editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
-              editor.insertText(selectionIndex + 1, '\n', Quill.sources.SILENT);
-              editor.setSelection(selectionIndex + 2, 0, Quill.sources.SILENT);
-              setTimeout(() => attachObserversToAllFigures(), 60);
-              clearSuppressionLater();
-            } catch (err) {
-              console.warn('drop insert failed', err);
-              window.__suppressDropInserts = false;
+          if (!widthPx || widthPx <= 0) {
+            if (target.style.width && target.style.width !== 'auto') {
+              target.style.width = 'auto';
             }
-          })();
+            applyCaptionWidth(widthPx);
+            return;
+          }
 
+          const current = parseInt((target.style.width || '').replace('px', ''), 10) || 0;
+          if (current === widthPx) {
+            applyCaptionWidth(widthPx);
+            return;
+          }
+
+          target.__mediaResizeApplying = true;
+          try {
+            target.style.width = widthPx + 'px';
+            target.style.maxWidth = '100%';
+          } finally {
+            requestAnimationFrame(() => { target.__mediaResizeApplying = false; });
+          }
+
+          applyCaptionWidth(widthPx);
+        } catch (err) { }
+      };
+
+      const ro = new ResizeObserver(sync);
+      try { ro.observe(target); } catch (e) { }
+      try { if (mediaEl !== target) ro.observe(mediaEl); } catch (e) { }
+
+      const mo = new MutationObserver(sync);
+      try { mo.observe(mediaEl, { attributes: true, attributeFilter: ['style', 'class', 'width', 'src'] }); } catch (e) { }
+
+      target.__mediaResizeObserver = ro;
+      target.__mediaMutationObserver = mo;
+
+      requestAnimationFrame(sync);
+    }
+
+    /* ---------------------------
+       Attach observers + wrap media into figure.custom-figure
+       --------------------------- */
+    function attachObserversToAllFigures(root = document) {
+      (root || document).querySelectorAll('img, video').forEach(media => {
+        try {
+          const src = media.currentSrc || media.getAttribute && media.getAttribute('src') || '';
+          if (src && wasRecentlyInserted(normalizeUrl(src))) {
+            return;
+          }
+          if (!media.closest('#root')) return;
+          if (media.closest('figure.custom-figure')) {
+            attachMediaResizeSync(media, media.closest('figure.custom-figure'));
+            return;
+          }
+
+          let next = media.nextSibling;
+          while (next && next.nodeType !== 1) next = next.nextSibling;
+          const hasCaption = next && next.classList && next.classList.contains('ql-caption');
+
+          const figure = document.createElement('figure');
+          figure.className = 'custom-figure align-center';
+          figure.setAttribute('contenteditable', 'false');
+
+          const cs = window.getComputedStyle(media);
+          const computedWidth = parseInt(cs.width, 10);
+          if (computedWidth && computedWidth > 20) figure.style.width = computedWidth + 'px';
+
+          const parent = media.parentElement;
+          if (!parent) return;
+          parent.insertBefore(figure, media);
+
+          // if media is already inside an anchor, keep anchor
+          const anchor = media.closest && media.closest('a');
+          if (anchor && anchor.getAttribute && anchor.getAttribute('href')) {
+            anchor.setAttribute('data-figure-link', '1');
+            figure.appendChild(anchor);
+          } else {
+            figure.appendChild(media);
+          }
+
+          if (hasCaption) {
+            figure.appendChild(next);
+          } else {
+            const caption = document.createElement('figcaption');
+            caption.className = 'ql-caption';
+            caption.setAttribute('contenteditable', 'true');
+            caption.innerText = '';
+            figure.appendChild(caption);
+          }
+
+          attachControls(figure);
+          const innerMedia = figure.querySelector('img,video');
+          if (innerMedia) attachMediaResizeSync(innerMedia, figure);
+
+        } catch (e) { }
+      });
+
+      (root || document).querySelectorAll('figure.custom-figure img, figure.custom-figure video').forEach(media => {
+        try { attachMediaResizeSync(media, media.closest('figure.custom-figure')); } catch (e) { }
+      });
+    }
+
+    attachObserversToAllFigures();
+    editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
+    /* ---------------------------
+       Modal UI logic (insert FigureBlot)
+       --------------------------- */
+    function wireModal(opts) {
+      const overlay = document.getElementById(opts.overlayId);
+      const urlInput = document.getElementById(opts.urlId);
+      const fileInput = document.getElementById(opts.fileId);
+      const captionInput = document.getElementById(opts.captionId);
+      const preview = document.getElementById(opts.previewId);
+      const btnCancel = document.getElementById(opts.cancelId);
+      const btnInsert = document.getElementById(opts.insertId);
+
+      let selectedDataUrl = null; let lastSelectionIndex = 0;
+      function openModal() {
+        lastSelectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
+        urlInput.value = ''; fileInput.value = ''; captionInput.value = ''; selectedDataUrl = null;
+        preview.innerHTML = 'Preview';
+        overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(() => urlInput.focus(), 50);
+      }
+      function closeModal() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden', 'true'); urlInput.value = ''; fileInput.value = ''; captionInput.value = ''; selectedDataUrl = null; editor.focus(); }
+      function updatePreview() { const url = urlInput.value.trim(); const src = selectedDataUrl || url; if (!src) { preview.innerHTML = 'Preview'; return; } preview.innerHTML = ''; if (opts.type === 'image') { const img = document.createElement('img'); img.src = src; img.alt = captionInput.value || 'Preview image'; preview.appendChild(img); } else { const video = document.createElement('video'); video.controls = true; video.src = src; video.playsInline = true; preview.appendChild(video); } }
+
+      fileInput.addEventListener('change', (ev) => {
+        const file = ev.target.files && ev.target.files[0]; if (!file) return;
+        if (opts.type === 'image') {
+          const reader = new FileReader(); reader.onload = (e) => { selectedDataUrl = e.target.result; urlInput.value = ''; updatePreview(); }; reader.readAsDataURL(file);
+        } else {
+          try { const blobUrl = URL.createObjectURL(file); selectedDataUrl = blobUrl; urlInput.value = ''; updatePreview(); } catch (err) { const reader = new FileReader(); reader.onload = (e) => { selectedDataUrl = e.target.result; urlInput.value = ''; updatePreview(); }; reader.readAsDataURL(file); }
+        }
+      });
+
+      urlInput.addEventListener('input', () => { selectedDataUrl = null; updatePreview(); });
+      captionInput.addEventListener('input', updatePreview);
+      btnCancel.addEventListener('click', closeModal);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+      overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } if (e.key === 'Enter') { if (document.activeElement === fileInput) return; e.preventDefault(); btnInsert.click(); } });
+
+      btnInsert.addEventListener('click', () => {
+        const url = urlInput.value.trim(); const finalSrc = selectedDataUrl || url; const caption = captionInput.value.trim();
+        if (!finalSrc) { preview.innerHTML = '<span style="color:#cc0000">Please provide a URL or upload a file.</span>'; urlInput.focus(); return; }
+
+        const index = Math.max(0, lastSelectionIndex);
+        const type = opts.type === 'video' || urlLooksLikeVideo(finalSrc) ? 'video' : 'image';
+        editor.insertEmbed(index, 'figure', { url: finalSrc, type, caption: caption || '', width: '', height: '', align: 'center' }, Quill.sources.USER);
+        editor.insertText(index + 1, '\n', Quill.sources.SILENT);
+        editor.setSelection(index + 2, 0, Quill.sources.SILENT);
+        setTimeout(() => attachObserversToAllFigures(), 60);
+        markInserted(normalizeUrl(finalSrc));
+        closeModal();
+        return;
+      });
+
+      return { open: openModal };
+    }
+
+    const imageModal = wireModal({
+      overlayId: 'quill-image-modal-overlay',
+      urlId: 'quill-image-url',
+      fileId: 'quill-image-file',
+      captionId: 'quill-image-caption',
+      previewId: 'quill-image-preview',
+      cancelId: 'quill-image-cancel',
+      insertId: 'quill-image-insert',
+      type: 'image',
+    });
+    const videoModal = wireModal({
+      overlayId: 'quill-video-modal-overlay',
+      urlId: 'quill-video-url',
+      fileId: 'quill-video-file',
+      captionId: 'quill-video-caption',
+      previewId: 'quill-video-preview',
+      cancelId: 'quill-video-cancel',
+      insertId: 'quill-video-insert',
+      type: 'video'
+    });
+
+    /* ---------------------------
+       Link modal (for figure links)
+       --------------------------- */
+    function wireLinkModal() {
+      const overlay = document.getElementById('quill-link-modal-overlay');
+      const urlInput = document.getElementById('quill-link-url');
+      const btnCancel = document.getElementById('quill-link-cancel');
+      const btnInsert = document.getElementById('quill-link-insert');
+      const btnRemove = document.getElementById('quill-link-remove');
+
+      let currentFigure = null;
+
+      function openModalForFigure(fig) {
+        currentFigure = fig;
+        // prefill
+        const val = FigureBlot.value(fig);
+        const link = val.link || { href: '', target: '', rel: '' };
+        urlInput.value = link.href || '';
+        overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(() => urlInput.focus(), 50);
+      }
+      function close() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden', 'true'); urlInput.value = ''; currentFigure = null; editor.focus(); }
+
+      btnCancel.addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === urlInput) { e.preventDefault(); btnInsert.click(); } } });
+
+      function applyLinkToFigure(fig, linkObj) {
+        if (!fig) return;
+        try {
+          // ensure media exists
+          const media = fig.querySelector('img,video');
+          if (!media) return;
+
+          // remove old anchor
+          const existingAnchor = fig.querySelector('a[data-figure-link]') || (media.closest && media.closest('a'));
+          if (linkObj && linkObj.href) {
+            // create/update anchor
+            let anchor;
+            if (existingAnchor) {
+              anchor = existingAnchor;
+              anchor.setAttribute('href', linkObj.href);
+              if (linkObj.target) anchor.setAttribute('target', linkObj.target); else anchor.removeAttribute('target');
+              if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel); else anchor.removeAttribute('rel');
+              // ensure media is inside anchor
+              if (anchor !== media.parentElement) {
+                anchor.appendChild(media);
+              }
+            } else {
+              anchor = document.createElement('a');
+              anchor.setAttribute('data-figure-link', '1');
+              anchor.setAttribute('href', linkObj.href);
+              if (linkObj.target) anchor.setAttribute('target', linkObj.target);
+              if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel);
+              // move media into anchor
+              fig.insertBefore(anchor, media);
+              anchor.appendChild(media);
+            }
+          } else {
+            // remove anchor if present
+            if (existingAnchor) {
+              // move media out and remove anchor
+              if (existingAnchor.contains(media)) {
+                existingAnchor.parentElement.insertBefore(media, existingAnchor);
+              }
+              existingAnchor.remove();
+            }
+          }
+
+          // update blot value
+          const blot = Quill.find(fig);
+          if (blot) {
+            const idx = editor.getIndex(blot);
+            const val = FigureBlot.value(fig);
+            editor.deleteText(idx, 1, Quill.sources.SILENT);
+            editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+          }
+        } catch (err) { console.warn('applyLinkToFigure failed', err); }
+      }
+
+      btnInsert.addEventListener('click', () => {
+        const href = (urlInput.value || '').trim();
+        if (!href) { urlInput.focus(); return; }
+        const linkObj = { href, target: '_blank', rel: 'noopener noreferrer' };
+        applyLinkToFigure(currentFigure, linkObj);
+        close();
+      });
+
+      btnRemove.addEventListener('click', () => {
+        applyLinkToFigure(currentFigure, null);
+        close();
+      });
+
+      return { openForFigure: openModalForFigure };
+    }
+    const linkModal = wireLinkModal();
+
+    /* ---------------------------
+       Size modal (for setting width/height) 
+       - user-friendly presets
+       - lock aspect ratio
+       - stores width & height on blot
+       --------------------------- */
+    function wireSizeModal() {
+      const overlay = document.getElementById('quill-size-modal-overlay');
+      const widthInput = document.getElementById('quill-size-width');
+      const heightInput = document.getElementById('quill-size-height');
+      const lockCheckbox = document.getElementById('quill-size-lock');
+      const intrinsicEl = document.getElementById('quill-size-intrinsic');
+      const btnCancel = document.getElementById('quill-size-cancel');
+      const btnApply = document.getElementById('quill-size-apply');
+      const presetBtns = overlay.querySelectorAll('[data-preset]');
+
+      let currentFigure = null;
+      let intrinsic = { w: 0, h: 0, ratio: 1 };
+
+      function parseSizeInput(val) {
+        if (!val) return null;
+        val = String(val).trim();
+        if (val === 'auto') return 'auto';
+        if (val.endsWith('%')) return val;
+        if (val.endsWith('px')) return val;
+        // number assumed px
+        if (/^\d+$/.test(val)) return val + 'px';
+        return val; // return raw if weird
+      }
+
+      function openForFigure(fig) {
+        currentFigure = fig;
+        const val = FigureBlot.value(fig);
+        // try to determine intrinsic size from media
+        const media = fig.querySelector('img,video');
+        intrinsic = { w: 0, h: 0, ratio: 1 };
+        if (media) {
+          if (media.tagName.toLowerCase() === 'img') {
+            intrinsic.w = media.naturalWidth || 0;
+            intrinsic.h = media.naturalHeight || 0;
+          } else if (media.tagName.toLowerCase() === 'video') {
+            intrinsic.w = media.videoWidth || media.clientWidth || 0;
+            intrinsic.h = media.videoHeight || media.clientHeight || 0;
+          }
+          intrinsic.ratio = (intrinsic.h && intrinsic.w) ? (intrinsic.w / intrinsic.h) : 1;
+        }
+
+        intrinsicEl.textContent = intrinsic.w && intrinsic.h ? `Intrinsic: ${intrinsic.w}×${intrinsic.h}` : '';
+
+        widthInput.value = val.width || '';
+        heightInput.value = val.height || '';
+        lockCheckbox.checked = true;
+
+        // wire lock behaviour: when width changes and lock is checked, update height accordingly
+        widthInput.oninput = () => {
+          if (!lockCheckbox.checked) return;
+          const w = parseSizeInput(widthInput.value);
+          if (!w) return;
+          // handle percent -> can't compute absolute height reliably; keep height blank
+          if (typeof w === 'string' && w.endsWith('%')) { heightInput.value = ''; return; }
+          const px = parseInt(String(w).replace('px', ''), 10);
+          if (!px || !intrinsic.ratio) return;
+          const newH = Math.round(px / intrinsic.ratio);
+          heightInput.value = newH + 'px';
+        };
+        heightInput.oninput = () => {
+          if (!lockCheckbox.checked) return;
+          const h = parseSizeInput(heightInput.value);
+          if (!h) return;
+          if (typeof h === 'string' && h.endsWith('%')) { widthInput.value = ''; return; }
+          const ph = parseInt(String(h).replace('px', ''), 10);
+          if (!ph || !intrinsic.ratio) return;
+          const newW = Math.round(ph * intrinsic.ratio);
+          widthInput.value = newW + 'px';
+        };
+
+        presetBtns.forEach(btn => btn.addEventListener('click', presetHandler));
+
+        overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false');
+        setTimeout(() => widthInput.focus(), 50);
+      }
+
+      function presetHandler(ev) {
+        const p = ev.currentTarget.getAttribute('data-preset');
+        widthInput.value = p;
+        // simulate input
+        widthInput.dispatchEvent(new Event('input'));
+      }
+
+      function close() {
+        presetBtns.forEach(btn => btn.removeEventListener('click', presetHandler));
+        overlay.classList.remove('active'); overlay.setAttribute('aria-hidden', 'true');
+        widthInput.value = ''; heightInput.value = ''; lockCheckbox.checked = false; intrinsicEl.textContent = ''; currentFigure = null;
+        editor.focus();
+      }
+
+      btnCancel.addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === widthInput || document.activeElement === heightInput) { e.preventDefault(); btnApply.click(); } } });
+
+      btnApply.addEventListener('click', () => {
+        if (!currentFigure) return;
+        const w = parseSizeInput(widthInput.value);
+        const h = parseSizeInput(heightInput.value);
+
+        try {
+          if (w) currentFigure.style.width = w;
+          else currentFigure.style.removeProperty('width');
+          if (h && h !== 'auto') currentFigure.style.height = h;
+          else currentFigure.style.removeProperty('height');
+
+          // update blot
+          const blot = Quill.find(currentFigure);
+          if (blot) {
+            const idx = editor.getIndex(blot);
+            const val = FigureBlot.value(currentFigure);
+            val.width = currentFigure.style.width || '';
+            val.height = currentFigure.style.height || '';
+            editor.deleteText(idx, 1, Quill.sources.SILENT);
+            editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+          }
+        } catch (err) {
+          console.warn('apply size failed', err);
+        }
+
+        close();
+      });
+
+      return { openForFigure };
+    }
+    const sizeModal = wireSizeModal();
+
+    /* ---------------------------
+       Toolbar handlers
+       --------------------------- */
+    const toolbar = editor.getModule('toolbar');
+    if (toolbar) {
+      toolbar.addHandler('image', () => imageModal.open());
+      toolbar.addHandler('video', () => videoModal.open());
+      toolbar.addHandler('hr', () => {
+        const range = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+        editor.insertEmbed(range.index, 'hr', true, Quill.sources.USER);
+        editor.insertText(range.index + 1, '\n', Quill.sources.SILENT);
+        editor.setSelection(range.index + 2, 0, Quill.sources.SILENT);
+      });
+
+      // custom link handler: if a figure is selected or caret inside a figure, open figure-link modal
+      toolbar.addHandler('link', () => {
+        // try detect figure under selection
+        const sel = window.getSelection && window.getSelection();
+        let node = sel && sel.anchorNode;
+        if (!node) return;
+        const fig = node.closest && node.closest('figure.custom-figure');
+        if (fig) {
+          // open modal for this figure
+          linkModal.openForFigure(fig);
           return;
         }
-      } catch (err) {
-        console.warn('drop processing error', err);
-      }
+
+        // fallback to default text link prompt
+        const range = editor.getSelection();
+        const url = prompt('Enter the URL for selected text');
+        if (url) {
+          editor.format('link', url, Quill.sources.USER);
+        }
+      });
     }
 
-    setTimeout(() => attachObserversToAllFigures(), 80);
-    editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
-    clearSuppression();
-  })();
-});
-/* ---------------------------
-   Controls attachment for figure (toolbar, resize handle, caption edit, link)
-   --------------------------- */
-   function attachControls(figureEl) {
-  if (!figureEl || figureEl.__controlsAttached) return;
-  figureEl.__controlsAttached = true;
+    /* ---------------------------
+       Tooltip system (unchanged)
+       --------------------------- */
+    const TOOLTIP_MAP = { bold: 'Bold (Ctrl+B)', italic: 'Italic (Ctrl+I)', underline: 'Underline (Ctrl+U)', strike: 'Strikethrough', blockquote: 'Blockquote', 'code-block': 'Code block', 'header:1': 'Heading 1', 'header:2': 'Heading 2', 'list:ordered': 'Ordered list', 'list:bullet': 'Bulleted list', 'list:check': 'Checklist', 'script:sub': 'Subscript', 'script:super': 'Superscript', 'indent:-1': 'Decrease indent', 'indent:+1': 'Increase indent', 'direction:rtl': 'Right-to-left', 'align': 'Alignment', 'size': 'Font size', 'color': 'Text color', 'background': 'Background color', 'font': 'Font family', link: 'Insert link', image: 'Insert image', video: 'Insert video', formula: 'Insert formula', 'table-better': 'Table tools', clean: 'Remove formatting', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y / Ctrl+Shift+Z)' };
+    const tooltipEl = document.createElement('div');
+    tooltipEl.className = 'ql-custom-tooltip';
+    document.body.appendChild(tooltipEl);
 
-  // ensure relative positioning & sane default width
-  figureEl.style.position = getComputedStyle(figureEl).position === 'static' ? 'relative' : figureEl.style.position;
-  if (!figureEl.style.width) figureEl.style.width = '320px';
+    function detectFormatFromNode(node) {
+      if (!node) return null;
+      for (const cls of node.classList) {
+        if (!cls.startsWith('ql-')) continue;
+        const key = cls.slice(3);
+        const val = node.getAttribute('value') || node.getAttribute('data-value');
+        if (val !== null && val !== undefined && val !== '') return `${key}:${val}`;
+        return key;
+      }
+      const picker = node.closest && node.closest('.ql-picker');
+      if (picker) return 'align';
+      return null;
+    }
 
-  // cleanup old extras if any (defensive)
-  Array.from(figureEl.querySelectorAll('.fig-corner, .resize-overlay, .resize-guide-h, .resize-guide-v, .snap-dot, .figure-toolbar')).forEach(n => n.remove());
+    function getTooltipTextForNode(node) {
+      if (!node) return '';
+      if (node.dataset && node.dataset.tooltip) return node.dataset.tooltip;
+      if (node.getAttribute && node.getAttribute('aria-label')) return node.getAttribute('aria-label');
+      const fmt = detectFormatFromNode(node);
+      if (!fmt) return (node.innerText || '').trim() || '';
+      if (TOOLTIP_MAP[fmt]) return TOOLTIP_MAP[fmt];
+      const [k, v] = fmt.split(':');
+      if (v) {
+        if (k === 'header') return `Heading ${v}`;
+        if (k === 'list') {
+          if (v === 'ordered') return 'Ordered list';
+          if (v === 'bullet') return 'Bulleted list';
+          if (v === 'check') return 'Checklist';
+        }
+        if (k === 'script') return v === 'sub' ? 'Subscript' : 'Superscript';
+        if (k === 'indent') return v === '-1' ? 'Decrease indent' : 'Increase indent';
+      }
+      return k.charAt(0).toUpperCase() + k.slice(1);
+    }
+    let mouseMoveHandler = null;
+    function positionTooltip(target, event) {
+      const rect = target.getBoundingClientRect();
+      tooltipEl.style.left = '0px';
+      tooltipEl.style.top = '0px';
+      const tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight;
+      let left, top;
+      if (event && (event.clientX || event.clientY)) {
+        left = event.clientX - tw / 2;
+        top = event.clientY - th - 12;
+      } else {
+        left = rect.left + (rect.width / 2) - (tw / 2);
+        top = rect.top - th - 10;
+      }
+      const margin = 8;
+      if (left < margin) left = margin;
+      if (left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
+      if (top < margin) top = rect.bottom + 12;
+      tooltipEl.style.left = `${Math.round(left)}px`;
+      tooltipEl.style.top = `${Math.round(top)}px`;
+    }
 
-  // create four rounded corner handles
-  const corners = {
-    tl: document.createElement('button'),
-    tr: document.createElement('button'),
-    br: document.createElement('button'),
-    bl: document.createElement('button'),
-  };
-  Object.entries(corners).forEach(([k, el]) => {
-    el.className = 'fig-corner ' + k;
-    el.setAttribute('aria-label', `Resize ${k}`);
-    el.setAttribute('role','slider');
-    el.setAttribute('tabindex','0');
-    figureEl.appendChild(el);
-  });
+    function showTooltip(target, event) {
+      const text = getTooltipTextForNode(target);
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.classList.add('visible');
+      positionTooltip(target, event);
+      mouseMoveHandler = (ev) => positionTooltip(target, ev);
+      document.addEventListener('mousemove', mouseMoveHandler);
+    }
+    function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+      tooltipEl.textContent = '';
+      if (mouseMoveHandler) {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        mouseMoveHandler = null;
+      }
+    }
+    function attachToolbarTooltips() {
+      const toolbarEl = document.querySelector('.ql-toolbar');
+      if (!toolbarEl) return;
 
-  // resize overlay (center top) showing size & percent & aspect lock
-  const overlay = document.createElement('div');
-  overlay.className = 'resize-overlay';
-  overlay.innerHTML = `<span class="size-text">0×0 px</span><span class="percent-text">0%</span><span class="aspect" title="Aspect ratio (Alt to temporarily unlock)">🔒</span>`;
-  figureEl.appendChild(overlay);
+      const controls = toolbarEl.querySelectorAll('button, .ql-picker, .ql-picker-label, select, input');
 
-  // guide lines and snap indicator
-  const hGuide = document.createElement('div'); hGuide.className = 'resize-guide-h';
-  const vGuide = document.createElement('div'); vGuide.className = 'resize-guide-v';
-  const snapDot = document.createElement('div'); snapDot.className = 'snap-dot';
-  figureEl.appendChild(hGuide); figureEl.appendChild(vGuide); figureEl.appendChild(snapDot);
+      controls.forEach(ctrl => {
+        if (ctrl.dataset && ctrl.dataset.tooltipBound) return;
 
-  // toolbar reuse (same content as before)
-  const toolbarEl = document.createElement('div');
-  toolbarEl.className = 'figure-toolbar';
-  toolbarEl.innerHTML = `
+        let anc = ctrl.parentElement;
+        let skip = false;
+        while (anc && anc !== toolbarEl) {
+          if (anc.dataset && anc.dataset.tooltipBound) { skip = true; break; }
+          anc = anc.parentElement;
+        }
+        if (skip) return;
+
+        ctrl.dataset.tooltipBound = '1';
+
+        const title = getTooltipTextForNode(ctrl) || '';
+        if (title) {
+          ctrl.dataset.tooltip = title;
+          ctrl.setAttribute('aria-label', title);
+          ctrl.removeAttribute('title');
+        }
+
+        ctrl.addEventListener('mouseenter', (ev) => showTooltip(ctrl, ev));
+        ctrl.addEventListener('mouseleave', hideTooltip);
+        ctrl.addEventListener('click', hideTooltip);
+      });
+    }
+
+    attachToolbarTooltips();
+    const toolbarObserver = new MutationObserver(() => attachToolbarTooltips());
+    const tb = document.querySelector('.ql-toolbar');
+    if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
+
+    /* ---------------------------
+       Drag and drop support (images + native videos) -> inserts FigureBlot
+       --------------------------- */
+    const editorCard = document.querySelector('.editor-card');
+    const editorRoot = editor.root;
+
+    editorRoot.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      editorCard.classList.add("drag-over");
+      editorRoot.classList.add("drag-target");
+    });
+
+    editorRoot.addEventListener("dragleave", (e) => {
+      editorCard.classList.remove("drag-over");
+      editorRoot.classList.remove("drag-target");
+    });
+
+    function findExistingMediaElementBySrc(url) {
+      if (!url) return null;
+      const norm = normalizeUrl(url);
+      const imgs = Array.from(editor.root.querySelectorAll('img'));
+      for (const img of imgs) {
+        try {
+          const s = img.currentSrc || img.getAttribute('src') || '';
+          if (!s) continue;
+          if (normalizeUrl(s) === norm) return img;
+        } catch (e) { }
+      }
+      const vids = Array.from(editor.root.querySelectorAll('video'));
+      for (const v of vids) {
+        try {
+          const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
+          if (!s) continue;
+          if (normalizeUrl(s) === norm) return v;
+        } catch (e) { }
+      }
+      return null;
+    }
+
+    editorRoot.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editorCard.classList.remove("drag-over");
+      editorRoot.classList.remove("drag-target");
+
+      if (!e.dataTransfer) return;
+
+      const items = Array.from(e.dataTransfer.items || []);
+      const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+      const fallbackFiles = Array.from(e.dataTransfer.files || []);
+      const realFiles = files.length ? files : fallbackFiles;
+
+      if (!realFiles.length) {
+        return;
+      }
+
+      const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+      let insertIndex = Math.max(0, selection.index);
+
+      window.__suppressDropInserts = true;
+      const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+
+      (async () => {
+        for (const file of realFiles) {
+          try {
+            if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+              (async () => {
+                window.__suppressDropInserts = true;
+                const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+                try {
+                  let finalUrl;
+                  if (file.type.startsWith("image/")) {
+                    finalUrl = await new Promise((res, rej) => {
+                      const r = new FileReader();
+                      r.onload = (ev) => res(ev.target.result);
+                      r.onerror = rej;
+                      r.readAsDataURL(file);
+                    });
+                  } else {
+                    try {
+                      finalUrl = URL.createObjectURL(file);
+                      blobUrlTracker.add(finalUrl);
+                    } catch (err) {
+                      finalUrl = await new Promise((res, rej) => {
+                        const r = new FileReader();
+                        r.onload = (ev) => res(ev.target.result);
+                        r.onerror = rej;
+                        r.readAsDataURL(file);
+                      });
+                    }
+                  }
+                  if (!finalUrl) return;
+                  const key = normalizeUrl(finalUrl);
+                  markInserted(key);
+
+                  const existing = findExistingMediaElementBySrc(finalUrl);
+
+                  if (existing) {
+                    try {
+                      const fig = existing.closest && existing.closest('figure.custom-figure');
+                      if (fig) {
+                        const media = fig.querySelector('img, video');
+                        if (media) {
+                          if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
+                            (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
+                            if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
+                            else {
+                              const srcEl = media.querySelector('source') || document.createElement('source');
+                              srcEl.src = finalUrl;
+                              if (!media.querySelector('source')) media.appendChild(srcEl);
+                              media.load && media.load();
+                            }
+                            const parentBlot = Quill.find(fig);
+                            if (parentBlot) {
+                              const idx = editor.getIndex(parentBlot);
+                              const val = FigureBlot.value(fig);
+                              editor.deleteText(idx, 1, Quill.sources.SILENT);
+                              editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+                            }
+                          }
+                        }
+                        const blot = Quill.find(fig);
+                        if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
+                        clearSuppressionLater();
+                        setTimeout(() => attachObserversToAllFigures(), 60);
+                        return;
+                      }
+                      const blot = Quill.find(existing);
+                      if (blot) {
+                        const idx = editor.getIndex(blot);
+                        const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+                        editor.deleteText(idx, 1, Quill.sources.SILENT);
+                        editor.insertEmbed(idx, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+                        editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
+                        editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
+                        clearSuppressionLater();
+                        setTimeout(() => attachObserversToAllFigures(), 60);
+                        return;
+                      }
+                    } catch (err) {
+                      console.warn('existing-media convert failed', err);
+                    }
+                  }
+
+                  const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+                  const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
+                  editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+                  editor.insertText(selectionIndex + 1, '\n', Quill.sources.SILENT);
+                  editor.setSelection(selectionIndex + 2, 0, Quill.sources.SILENT);
+                  setTimeout(() => attachObserversToAllFigures(), 60);
+                  clearSuppressionLater();
+                } catch (err) {
+                  console.warn('drop insert failed', err);
+                  window.__suppressDropInserts = false;
+                }
+              })();
+
+              return;
+            }
+          } catch (err) {
+            console.warn('drop processing error', err);
+          }
+        }
+
+        setTimeout(() => attachObserversToAllFigures(), 80);
+        editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
+        clearSuppression();
+      })();
+    });
+    /* ---------------------------
+       Controls attachment for figure (toolbar, resize handle, caption edit, link)
+       --------------------------- */
+    function attachControls(figureEl) {
+      if (!figureEl || figureEl.__controlsAttached) return;
+      figureEl.__controlsAttached = true;
+
+      // ensure relative positioning & sane default width
+      figureEl.style.position = getComputedStyle(figureEl).position === 'static' ? 'relative' : figureEl.style.position;
+      if (!figureEl.style.width) figureEl.style.width = '320px';
+
+      // cleanup old extras if any (defensive)
+      Array.from(figureEl.querySelectorAll('.fig-corner, .resize-overlay, .resize-guide-h, .resize-guide-v, .snap-dot, .figure-toolbar')).forEach(n => n.remove());
+
+      // create four rounded corner handles
+      const corners = {
+        tl: document.createElement('button'),
+        tr: document.createElement('button'),
+        br: document.createElement('button'),
+        bl: document.createElement('button'),
+      };
+      Object.entries(corners).forEach(([k, el]) => {
+        el.className = 'fig-corner ' + k;
+        el.setAttribute('aria-label', `Resize ${k}`);
+        el.setAttribute('role', 'slider');
+        el.setAttribute('tabindex', '0');
+        figureEl.appendChild(el);
+      });
+
+      // resize overlay (center top) showing size & percent & aspect lock
+      const overlay = document.createElement('div');
+      overlay.className = 'resize-overlay';
+      overlay.innerHTML = `<span class="size-text">0×0 px</span><span class="percent-text">0%</span><span class="aspect" title="Aspect ratio (Alt to temporarily unlock)">🔒</span>`;
+      figureEl.appendChild(overlay);
+
+      // guide lines and snap indicator
+      const hGuide = document.createElement('div'); hGuide.className = 'resize-guide-h';
+      const vGuide = document.createElement('div'); vGuide.className = 'resize-guide-v';
+      const snapDot = document.createElement('div'); snapDot.className = 'snap-dot';
+      figureEl.appendChild(hGuide); figureEl.appendChild(vGuide); figureEl.appendChild(snapDot);
+
+      // toolbar reuse (same content as before)
+      const toolbarEl = document.createElement('div');
+      toolbarEl.className = 'figure-toolbar';
+      toolbarEl.innerHTML = `
     <button data-action="align-left" title="Align left">L</button>
     <button data-action="align-center" title="Align center">C</button>
     <button data-action="align-right" title="Align right">R</button>
@@ -1471,323 +1815,330 @@ editorRoot.addEventListener("drop", (e) => {
     <button data-action="size" title="Set size">⤢</button>
     <button data-action="remove" title="Remove">🗑</button>
   `;
-  figureEl.appendChild(toolbarEl);
+      figureEl.appendChild(toolbarEl);
 
-  // helper: update overlay values + aspect icon
-  function updateOverlay(w, h) {
-    const sizeText = overlay.querySelector('.size-text');
-    const pctText = overlay.querySelector('.percent-text');
-    const aspectIcon = overlay.querySelector('.aspect');
-    const wI = Math.round(w || figureEl.getBoundingClientRect().width);
-    const hI = Math.round(h || figureEl.querySelector('img,video')?.offsetHeight || 0);
-    sizeText.textContent = `${wI}×${hI} px`;
+      // helper: update overlay values + aspect icon
+      function updateOverlay(w, h) {
+        const sizeText = overlay.querySelector('.size-text');
+        const pctText = overlay.querySelector('.percent-text');
+        const aspectIcon = overlay.querySelector('.aspect');
+        const wI = Math.round(w || figureEl.getBoundingClientRect().width);
+        const hI = Math.round(h || figureEl.querySelector('img,video')?.offsetHeight || 0);
+        sizeText.textContent = `${wI}×${hI} px`;
 
-    // percent width relative to editor root
-    const editorW = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1;
-    const pct = Math.round((wI / editorW) * 100);
-    pctText.textContent = `${pct}%`;
+        // percent width relative to editor root
+        const editorW = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1;
+        const pct = Math.round((wI / editorW) * 100);
+        pctText.textContent = `${pct}%`;
 
-    // aspect lock display (default lock)
-    if (figureEl.__aspectLocked === false) aspectIcon.textContent = '🔓';
-    else aspectIcon.textContent = '🔒';
-  }
+        // aspect lock display (default lock)
+        if (figureEl.__aspectLocked === false) aspectIcon.textContent = '🔓';
+        else aspectIcon.textContent = '🔒';
+      }
 
-  // position corners relative to media
-  function updateCornerPositions() {
-    try {
-      const media = figureEl.querySelector('img,video');
-      if (!media) return;
-      const mRect = media.getBoundingClientRect();
-      const fRect = figureEl.getBoundingClientRect();
-      const offsetLeft = media.offsetLeft || (mRect.left - fRect.left);
-      const offsetTop = media.offsetTop || (mRect.top - fRect.top);
-      const w = media.offsetWidth || mRect.width;
-      const h = media.offsetHeight || mRect.height;
-      const inset = 8;
+      // position corners relative to media
+      function updateCornerPositions() {
+        try {
+          const media = figureEl.querySelector('img,video');
+          if (!media) return;
 
-      // left/top, right/top, right/bottom, left/bottom
-      corners.tl.style.left = Math.max(0, offsetLeft + inset) + 'px';
-      corners.tl.style.top = Math.max(0, offsetTop + inset) + 'px';
+          media.style.outline = "2px dashed #007bff"
+          const offsetLeft = media.offsetLeft;
+          const offsetTop = media.offsetTop;
+          const w = media.offsetWidth;
+          const h = media.offsetHeight;
 
-      corners.tr.style.left = Math.min(figureEl.clientWidth - 18, offsetLeft + w - 18 - inset) + 'px';
-      corners.tr.style.top = Math.max(0, offsetTop + inset) + 'px';
+          // left/top, right/top, right/bottom, left/bottom
+          corners.tl.style.left = (offsetLeft-6) + 'px';
+          corners.tl.style.top = (offsetTop-4) + 'px';
 
-      corners.br.style.left = Math.min(figureEl.clientWidth - 18, offsetLeft + w - 18 - inset) + 'px';
-      corners.br.style.top = Math.min(figureEl.clientHeight - 18, offsetTop + h - 18 - inset) + 'px';
+          corners.tr.style.left = ((offsetLeft + w - corners.tr.offsetWidth) + 6) + 'px';
+          corners.tr.style.top = (offsetTop - 4) + 'px';
 
-      corners.bl.style.left = Math.max(0, offsetLeft + inset) + 'px';
-      corners.bl.style.top = Math.min(figureEl.clientHeight - 18, offsetTop + h - 18 - inset) + 'px';
-    } catch (e) { /* ignore */ }
-  }
+          corners.br.style.left = ((offsetLeft + w - corners.br.offsetWidth)+7) + 'px';
+          corners.br.style.top = ((offsetTop + h - corners.br.offsetHeight)+4) + 'px';
 
-  const ro = new ResizeObserver(updateCornerPositions);
-  try { ro.observe(figureEl); ro.observe(figureEl.querySelector('img,video')); } catch(e){}
-
-  requestAnimationFrame(updateCornerPositions);
-
-  // selection logic (same)
-  figureEl.addEventListener('click', (evt) => {
-    if (evt.target.tagName && evt.target.tagName.toLowerCase() === 'figcaption') {
-      figureEl.classList.add('selected');
-      return;
-    }
-    document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
-    figureEl.classList.add('selected');
-  });
-  editor.root.addEventListener('click', (e) => {
-    const el = e.target.closest && e.target.closest('figure.custom-figure');
-    if (!el) document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
-  });
-
-  // toolbar behavior (unchanged)
-  toolbarEl.addEventListener('click', (ev) => {
-    const action = ev.target.closest('button')?.dataset?.action;
-    if (!action) return;
-    ev.stopPropagation();
-    if (action === 'remove') {
-      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); editor.deleteText(idx, 1, Quill.sources.USER); } else { figureEl.remove(); } } catch(e){ try{ figureEl.remove(); }catch(e){}}
-    } else if (action === 'edit-caption') {
-      const caption = figureEl.querySelector('.ql-caption, figcaption');
-      if (caption) { editor.disable(); caption.focus(); const range = document.createRange(); range.selectNodeContents(caption); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
-    } else if (action === 'link') { linkModal.openForFigure(figureEl); }
-    else if (action === 'size') { sizeModal.openForFigure(figureEl); }
-    else if (action.startsWith('align-')) {
-      figureEl.classList.remove('align-left','align-center','align-right');
-      const alignType = action.split('-')[1];
-      if (alignType === 'center') figureEl.classList.add('align-center');
-      else if (alignType === 'left') figureEl.classList.add('align-left');
-      else if (alignType === 'right') figureEl.classList.add('align-right');
-      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch(e){}
-    }
-  });
-
-  // caption edit handling
-  const captionEl = figureEl.querySelector('.ql-caption, figcaption');
-  if (captionEl) {
-    captionEl.addEventListener('focus', (e) => { e.stopPropagation(); figureEl.classList.add('selected'); try { editor.disable(); } catch(e) {} });
-    captionEl.addEventListener('blur', (e) => {
-      try { editor.enable(); } catch(e) {}
-      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch (err) {}
-    });
-    captionEl.addEventListener('keydown', (e) => e.stopPropagation());
-    captionEl.addEventListener('mousedown', (e) => e.stopPropagation());
-  }
-
-  /* --- Enhanced corner pointer resizing with overlay/guides/snapping --- */
-  let activeId = null, start = {}, aspect = 1, initial = {}, resizing = false;
-  // default lock (true) unless figureEl.__aspectLocked is explicit
-  if (typeof figureEl.__aspectLocked === 'undefined') figureEl.__aspectLocked = true;
-
-  function showGuides(cx, cy) {
-    const media = figureEl.querySelector('img,video');
-    if (!media) return;
-    const mRect = media.getBoundingClientRect();
-    const fRect = figureEl.getBoundingClientRect();
-    // position hGuide at media center y, vGuide at media center x relative to figure
-    const centerY = (media.offsetTop || (mRect.top - fRect.top)) + (media.offsetHeight || mRect.height) / 2;
-    const centerX = (media.offsetLeft || (mRect.left - fRect.left)) + (media.offsetWidth || mRect.width) / 2;
-    hGuide.style.top = Math.round(centerY) + 'px';
-    vGuide.style.left = Math.round(centerX) + 'px';
-  }
-
-  function beginCorner(ev, key) {
-    ev.preventDefault();
-    activeId = key;
-    resizing = true;
-    figureEl.classList.add('resizing');
-    try { ev.target.setPointerCapture(ev.pointerId); } catch(e){}
-    const media = figureEl.querySelector('img,video');
-    if (!media) return;
-    const rect = figureEl.getBoundingClientRect();
-    start.clientX = ev.clientX; start.clientY = ev.clientY;
-    initial.w = rect.width;
-    initial.h = media.offsetHeight || media.getBoundingClientRect().height || (initial.w / (media.naturalWidth && media.naturalHeight ? (media.naturalWidth / media.naturalHeight) : 1));
-    aspect = initial.w / (initial.h || 1);
-    // overlay visibility
-    overlay.style.opacity = 1;
-    updateOverlay(initial.w, initial.h);
-    showGuides();
-  }
-
-  function computeNewSize(ev) {
-    if (!resizing) return null;
-    const dx = ev.clientX - start.clientX;
-    const dy = ev.clientY - start.clientY;
-    let newW = initial.w, newH = initial.h;
-    // Determine lock state: Alt to unlock temporarily; Shift to force lock; default from figureEl.__aspectLocked
-    const lock = (figureEl.__aspectLocked === false) ? (ev.shiftKey ? true : false) : (ev.altKey ? false : true);
-    if (activeId === 'br') {
-      newW = Math.max(80, initial.w + dx);
-      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
-    } else if (activeId === 'bl') {
-      newW = Math.max(80, initial.w - dx);
-      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
-    } else if (activeId === 'tr') {
-      newW = Math.max(80, initial.w + dx);
-      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
-    } else if (activeId === 'tl') {
-      newW = Math.max(80, initial.w - dx);
-      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
-    }
-    // Constrain to editor width
-    const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1200;
-    newW = Math.min(newW, Math.max(80, editorWidth - 20));
-    return { w: Math.round(newW), h: Math.round(newH), lock };
-  }
-
-  function applySize(obj, ev) {
-    if (!obj) return;
-    // snapping: when Ctrl pressed, snap to common widths (25/50/75/100% or 320/640px)
-    const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1000;
-    let snapped = false;
-    if (ev && ev.ctrlKey) {
-      const presets = [
-        {label:'25%', px: Math.round(editorWidth * 0.25)},
-        {label:'50%', px: Math.round(editorWidth * 0.5)},
-        {label:'75%', px: Math.round(editorWidth * 0.75)},
-        {label:'100%', px: Math.round(editorWidth * 1.0)},
-        {label:'320px', px: 320},
-        {label:'640px', px: 640}
-      ];
-      for (const p of presets) {
-        if (Math.abs(obj.w - p.px) <= 10) {
-          obj.w = p.px;
-          // compute newH respecting aspect if locked
-          if (obj.lock) obj.h = Math.round(obj.w / aspect);
-          // show snap dot near center-right
-          snapDot.style.left = Math.min(figureEl.clientWidth - 12, (figureEl.clientWidth - 12) + 'px');
-          snapDot.style.top = Math.max(8, (figureEl.clientHeight / 2) - 4) + 'px';
-          figureEl.classList.add('snap');
-          snapped = true;
-          break;
+          corners.bl.style.left = (offsetLeft-6) + 'px';
+          corners.bl.style.top = (offsetTop + h - corners.bl.offsetHeight+4) + 'px';
+        } catch (e) {
+          console.error(e);
         }
       }
-      if (!snapped) { figureEl.classList.remove('snap'); }
-    } else { figureEl.classList.remove('snap'); }
 
-    figureEl.style.width = obj.w + 'px';
-    if (obj.h && obj.h !== 'auto') figureEl.style.height = obj.h + 'px';
-    else figureEl.style.removeProperty('height');
+      const ro = new ResizeObserver(updateCornerPositions);
+      try { ro.observe(figureEl); ro.observe(figureEl.querySelector('img,video')); } catch (e) { }
 
-    updateOverlay(obj.w, obj.h);
-    updateCornerPositions();
-    showGuides();
-  }
+      requestAnimationFrame(updateCornerPositions);
 
-  function moveCorner(ev) {
-    if (!resizing) return;
-    const obj = computeNewSize(ev);
-    applySize(obj, ev);
-  }
-
-  function endCorner(ev) {
-    if (!resizing) return;
-    resizing = false;
-    activeId = null;
-    figureEl.classList.remove('resizing');
-    overlay.style.opacity = 0;
-    figureEl.classList.remove('snap');
-    // persist to blot
-    try {
-      const blot = Quill.find(figureEl);
-      if (blot) {
-        const idx = editor.getIndex(blot);
-        const val = FigureBlot.value(figureEl);
-        val.width = figureEl.style.width || '';
-        val.height = figureEl.style.height || '';
-        editor.deleteText(idx, 1, Quill.sources.SILENT);
-        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-      }
-    } catch (err) { console.warn('persist size failed', err); }
-    updateCornerPositions();
-  }
-
-  // wire pointer events on corner buttons
-  Object.entries(corners).forEach(([k, btn]) => {
-    btn.addEventListener('pointerdown', (ev) => beginCorner(ev, k));
-    // accessibility: enter/space to open size modal for keyboard users
-    btn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sizeModal.openForFigure(figureEl); }
-    });
-  });
-
-  // capture pointer move/up globally (handles pointercapture via element but safe to listen global too)
-  const onPointerMove = (e) => moveCorner(e);
-  const onPointerUp = (e) => endCorner(e);
-  document.addEventListener('pointermove', onPointerMove);
-  document.addEventListener('pointerup', onPointerUp);
-  document.addEventListener('pointercancel', onPointerUp);
-
-  // keyboard nudging for selected figure (left/right/up/down)
-  const onKeyNudge = (e) => {
-    const isSelected = figureEl.classList && figureEl.classList.contains('selected');
-    if (!isSelected) return;
-    const step = e.shiftKey ? 10 : 1;
-    let w = parseInt((figureEl.style.width || '').replace('px','')) || Math.round(figureEl.getBoundingClientRect().width);
-    let h = parseInt((figureEl.style.height || '').replace('px','')) || Math.round(figureEl.querySelector('img,video')?.offsetHeight || w / aspect);
-    let changed = false;
-    if (e.key === 'ArrowLeft') { w = Math.max(40, w - step); changed = true; }
-    else if (e.key === 'ArrowRight') { w = Math.min((editor.root.clientWidth || 1200), w + step); changed = true; }
-    else if (e.key === 'ArrowUp') { h = Math.max(20, h - step); changed = true; }
-    else if (e.key === 'ArrowDown') { h = Math.min(2000, h + step); changed = true; }
-    else if (e.key === '+' || e.key === '=') { w = w + (e.shiftKey ? 10 : 1); changed = true; }
-    else if (e.key === '-') { w = Math.max(40, w - (e.shiftKey ? 10 : 1)); changed = true; }
-
-    if (changed) {
-      e.preventDefault();
-      figureEl.style.width = Math.round(w) + 'px';
-      figureEl.style.height = Math.round(h) + 'px';
-      updateOverlay(w,h);
-      updateCornerPositions();
-      // persist quickly
-      try {
-        const blot = Quill.find(figureEl);
-        if (blot) {
-          const idx = editor.getIndex(blot);
-          const val = FigureBlot.value(figureEl);
-          val.width = figureEl.style.width || '';
-          val.height = figureEl.style.height || '';
-          editor.deleteText(idx, 1, Quill.sources.SILENT);
-          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+      // selection logic (same)
+      figureEl.addEventListener('click', (evt) => {
+        if (evt.target.tagName && evt.target.tagName.toLowerCase() === 'figcaption') {
+          figureEl.classList.add('selected');
+          return;
         }
-      } catch (err) {}
-    }
-  };
-  document.addEventListener('keydown', onKeyNudge);
-
-  // double click to open size modal
-  figureEl.addEventListener('dblclick', (ev) => { ev.stopPropagation(); sizeModal.openForFigure(figureEl); });
-
-  // cleanup hook to remove listeners when figure removed
-  figureEl.__controlsCleanup = () => {
-    try { document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); document.removeEventListener('pointercancel', onPointerUp); document.removeEventListener('keydown', onKeyNudge); } catch(e){}
-    try { ro.disconnect(); } catch(e){}
-  };
-
-  // initial overlay values & corner position
-  const media = figureEl.querySelector('img,video');
-  updateOverlay(figureEl.getBoundingClientRect().width, media ? media.offsetHeight : 0);
-  requestAnimationFrame(updateCornerPositions);
-}
-
-/* Observe editor DOM for new figure nodes */
-const mo = new MutationObserver((mutations) => {
-  for (const m of mutations) {
-    if (m.type === 'childList' && m.addedNodes.length) {
-      m.addedNodes.forEach(node => {
-        if (node.nodeType !== 1) return;
-        if (node.matches && node.matches('figure.custom-figure')) attachControls(node);
-        else attachObserversToAllFigures(node);
+        document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
+        figureEl.classList.add('selected');
       });
+      editor.root.addEventListener('click', (e) => {
+        const el = e.target.closest && e.target.closest('figure.custom-figure');
+        if (!el) document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
+      });
+
+      // toolbar behavior (unchanged)
+      toolbarEl.addEventListener('click', (ev) => {
+        const action = ev.target.closest('button')?.dataset?.action;
+        if (!action) return;
+        ev.stopPropagation();
+        if (action === 'remove') {
+          try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); editor.deleteText(idx, 1, Quill.sources.USER); } else { figureEl.remove(); } } catch (e) { try { figureEl.remove(); } catch (e) { } }
+        } else if (action === 'edit-caption') {
+          const caption = figureEl.querySelector('.ql-caption, figcaption');
+          if (caption) { editor.disable(); caption.focus(); const range = document.createRange(); range.selectNodeContents(caption); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+        } else if (action === 'link') { linkModal.openForFigure(figureEl); }
+        else if (action === 'size') { sizeModal.openForFigure(figureEl); }
+        else if (action.startsWith('align-')) {
+          figureEl.classList.remove('align-left', 'align-center', 'align-right');
+          const alignType = action.split('-')[1];
+          if (alignType === 'center') figureEl.classList.add('align-center');
+          else if (alignType === 'left') figureEl.classList.add('align-left');
+          else if (alignType === 'right') figureEl.classList.add('align-right');
+          try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch (e) { }
+        }
+      });
+
+      // caption edit handling
+      const captionEl = figureEl.querySelector('.ql-caption, figcaption');
+      if (captionEl) {
+        captionEl.addEventListener('focus', (e) => { e.stopPropagation(); figureEl.classList.add('selected'); try { editor.disable(); } catch (e) { } });
+        captionEl.addEventListener('blur', (e) => {
+          try { editor.enable(); } catch (e) { }
+          try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch (err) { }
+        });
+        captionEl.addEventListener('keydown', (e) => e.stopPropagation());
+        captionEl.addEventListener('mousedown', (e) => e.stopPropagation());
+      }
+
+      /* --- Enhanced corner pointer resizing with overlay/guides/snapping --- */
+      let activeId = null, start = {}, aspect = 1, initial = {}, resizing = false;
+      // default lock (true) unless figureEl.__aspectLocked is explicit
+      if (typeof figureEl.__aspectLocked === 'undefined') figureEl.__aspectLocked = true;
+
+      function showGuides(cx, cy) {
+        const media = figureEl.querySelector('img,video');
+        if (!media) return;
+        const mRect = media.getBoundingClientRect();
+        const fRect = figureEl.getBoundingClientRect();
+        // position hGuide at media center y, vGuide at media center x relative to figure
+        const centerY = (media.offsetTop || (mRect.top - fRect.top)) + (media.offsetHeight || mRect.height) / 2;
+        const centerX = (media.offsetLeft || (mRect.left - fRect.left)) + (media.offsetWidth || mRect.width) / 2;
+        hGuide.style.top = Math.round(centerY) + 'px';
+        vGuide.style.left = Math.round(centerX) + 'px';
+      }
+
+      function beginCorner(ev, key) {
+        ev.preventDefault();
+        activeId = key;
+        resizing = true;
+        figureEl.classList.add('resizing');
+        try { ev.target.setPointerCapture(ev.pointerId); } catch (e) { }
+        const media = figureEl.querySelector('img,video');
+        if (!media) return;
+        const rect = figureEl.getBoundingClientRect();
+        start.clientX = ev.clientX; start.clientY = ev.clientY;
+        initial.w = rect.width - 12;
+        initial.h = media.offsetHeight || media.getBoundingClientRect().height || (initial.w / (media.naturalWidth && media.naturalHeight ? (media.naturalWidth / media.naturalHeight) : 1));
+        aspect = initial.w / (initial.h || 1);
+        // overlay visibility
+        overlay.style.opacity = 1;
+        updateOverlay(initial.w, initial.h);
+        showGuides();
+      }
+
+      function computeNewSize(ev) {
+        if (!resizing) return null;
+        const dx = ev.clientX - start.clientX;
+        const dy = ev.clientY - start.clientY;
+        let newW = initial.w, newH = initial.h;
+        // Determine lock state: Alt to unlock temporarily; Shift to force lock; default from figureEl.__aspectLocked
+        const lock = (figureEl.__aspectLocked === false) ? (ev.shiftKey ? true : false) : (ev.altKey ? false : true);
+        if (activeId === 'br') {
+          newW = Math.max(80, initial.w + dx);
+          newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
+        } else if (activeId === 'bl') {
+          newW = Math.max(80, initial.w - dx);
+          newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
+        } else if (activeId === 'tr') {
+          newW = Math.max(80, initial.w + dx);
+          newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
+        } else if (activeId === 'tl') {
+          newW = Math.max(80, initial.w - dx);
+          newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
+        }
+        // Constrain to editor width
+        const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1200;
+        newW = Math.min(newW, Math.max(80, editorWidth - 20));
+        return { w: Math.round(newW), h: Math.round(newH), lock };
+      }
+
+      function applySize(obj, ev) {
+        if (!obj) return;
+        // snapping: when Ctrl pressed, snap to common widths (25/50/75/100% or 320/640px)
+        const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1000;
+        let snapped = false;
+        if (ev && ev.ctrlKey) {
+          const presets = [
+            { label: '25%', px: Math.round(editorWidth * 0.25) },
+            { label: '50%', px: Math.round(editorWidth * 0.5) },
+            { label: '75%', px: Math.round(editorWidth * 0.75) },
+            { label: '100%', px: Math.round(editorWidth * 1.0) },
+            { label: '320px', px: 320 },
+            { label: '640px', px: 640 }
+          ];
+          for (const p of presets) {
+            if (Math.abs(obj.w - p.px) <= 10) {
+              obj.w = p.px;
+              // compute newH respecting aspect if locked
+              if (obj.lock) obj.h = Math.round(obj.w / aspect);
+              // show snap dot near center-right
+              snapDot.style.left = Math.min(figureEl.clientWidth - 12, (figureEl.clientWidth - 12) + 'px');
+              snapDot.style.top = Math.max(8, (figureEl.clientHeight / 2) - 4) + 'px';
+              figureEl.classList.add('snap');
+              snapped = true;
+              break;
+            }
+          }
+          if (!snapped) { figureEl.classList.remove('snap'); }
+        } else { figureEl.classList.remove('snap'); }
+
+        figureEl.style.width = obj.w + 'px';
+        if (obj.h && obj.h !== 'auto') figureEl.style.height = obj.h + 'px';
+        else figureEl.style.removeProperty('height');
+
+        updateOverlay(obj.w, obj.h);
+        updateCornerPositions();
+        showGuides();
+      }
+
+      function moveCorner(ev) {
+        if (!resizing) return;
+        const obj = computeNewSize(ev);
+        applySize(obj, ev);
+      }
+
+      function endCorner(ev) {
+        if (!resizing) return;
+        resizing = false;
+        activeId = null;
+        figureEl.classList.remove('resizing');
+        overlay.style.opacity = 0;
+        figureEl.classList.remove('snap');
+        // persist to blot
+        try {
+          const blot = Quill.find(figureEl);
+          if (blot) {
+            const idx = editor.getIndex(blot);
+            const val = FigureBlot.value(figureEl);
+            val.width = figureEl.style.width || '';
+            val.height = figureEl.style.height || '';
+            editor.deleteText(idx, 1, Quill.sources.SILENT);
+            editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+          }
+        } catch (err) { console.warn('persist size failed', err); }
+        updateCornerPositions();
+      }
+
+      // wire pointer events on corner buttons
+      Object.entries(corners).forEach(([k, btn]) => {
+        console.log("heioo");
+
+        btn.addEventListener('pointerdown', (ev) => beginCorner(ev, k));
+        // accessibility: enter/space to open size modal for keyboard users
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sizeModal.openForFigure(figureEl); }
+        });
+      });
+
+      // capture pointer move/up globally (handles pointercapture via element but safe to listen global too)
+      const onPointerMove = (e) => moveCorner(e);
+      const onPointerUp = (e) => endCorner(e);
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+
+      // keyboard nudging for selected figure (left/right/up/down)
+      const onKeyNudge = (e) => {
+        const isSelected = figureEl.classList && figureEl.classList.contains('selected');
+        if (!isSelected) return;
+        const step = e.shiftKey ? 10 : 1;
+        let w = parseInt((figureEl.style.width || '').replace('px', '')) || Math.round(figureEl.getBoundingClientRect().width);
+        let h = parseInt((figureEl.style.height || '').replace('px', '')) || Math.round(figureEl.querySelector('img,video')?.offsetHeight || w / aspect);
+        let changed = false;
+        if (e.key === 'ArrowLeft') { w = Math.max(40, w - step); changed = true; }
+        else if (e.key === 'ArrowRight') { w = Math.min((editor.root.clientWidth || 1200), w + step); changed = true; }
+        else if (e.key === 'ArrowUp') { h = Math.max(20, h - step); changed = true; }
+        else if (e.key === 'ArrowDown') { h = Math.min(2000, h + step); changed = true; }
+        else if (e.key === '+' || e.key === '=') { w = w + (e.shiftKey ? 10 : 1); changed = true; }
+        else if (e.key === '-') { w = Math.max(40, w - (e.shiftKey ? 10 : 1)); changed = true; }
+
+        if (changed) {
+          e.preventDefault();
+          figureEl.style.width = Math.round(w) + 'px';
+          figureEl.style.height = Math.round(h) + 'px';
+          updateOverlay(w, h);
+          updateCornerPositions();
+          // persist quickly
+          try {
+            const blot = Quill.find(figureEl);
+            if (blot) {
+              const idx = editor.getIndex(blot);
+              const val = FigureBlot.value(figureEl);
+              val.width = figureEl.style.width || '';
+              val.height = figureEl.style.height || '';
+              editor.deleteText(idx, 1, Quill.sources.SILENT);
+              editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+            }
+          } catch (err) { }
+        }
+      };
+      document.addEventListener('keydown', onKeyNudge);
+
+      // double click to open size modal
+      figureEl.addEventListener('dblclick', (ev) => { ev.stopPropagation(); sizeModal.openForFigure(figureEl); });
+
+      // cleanup hook to remove listeners when figure removed
+      figureEl.__controlsCleanup = () => {
+        try { document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); document.removeEventListener('pointercancel', onPointerUp); document.removeEventListener('keydown', onKeyNudge); } catch (e) { }
+        try { ro.disconnect(); } catch (e) { }
+      };
+
+      // initial overlay values & corner position
+      const media = figureEl.querySelector('img,video');
+      updateOverlay(figureEl.getBoundingClientRect().width, media ? media.offsetHeight : 0);
+      requestAnimationFrame(updateCornerPositions);
     }
-  }
-});
-mo.observe(editor.root, { childList: true, subtree: true });
-attachObserversToAllFigures(editor.root);
-/* ---------------------------
-   Small helpers
-   --------------------------- */
-function debounce(fn, wait = 120) { let t; return function(...a){ clearTimeout(t); t = setTimeout(()=> fn.apply(this,a), wait); }; }
-</script>
+
+    //closed  Controls attachment
+    /* Observe editor DOM for new figure nodes */
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'childList' && m.addedNodes.length) {
+          m.addedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches && node.matches('figure.custom-figure')) attachControls(node);
+            else attachObserversToAllFigures(node);
+          });
+        }
+      }
+    });
+    mo.observe(editor.root, { childList: true, subtree: true });
+
+    attachObserversToAllFigures(editor.root);
+
+    /* ---------------------------
+       Small helpers
+       --------------------------- */
+    function debounce(fn, wait = 120) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; }
+
+  </script>
 </body>
 </html>
