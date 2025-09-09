@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quill — Image + Caption (Custom Resizer Only)</title>
+<title>Quill — Image + Caption + Link + Size</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css">
@@ -39,6 +39,140 @@ body{background:var(--page-bg);font-family:"Segoe UI", Roboto, system-ui, -apple
   white-space: normal;
   text-align: center;
 }
+/* Improved resize UI: rounded handles, tooltip overlay, guide lines */
+figure.custom-figure .fig-resize-handle,
+figure.custom-figure .fig-handle { display: none; }
+
+figure.custom-figure .fig-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(180deg,#ffffff,#f3f6fb);
+  box-shadow: 0 6px 16px rgba(17,24,39,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+  border: 1px solid rgba(90,100,120,0.14);
+  transform-origin: center;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+  z-index: 140;
+  cursor: nwse-resize;
+  touch-action: none;
+  display: block;
+}
+
+/* direction-specific cursors */
+figure.custom-figure .fig-corner.tl { cursor: nwse-resize; }
+figure.custom-figure .fig-corner.tr { cursor: nesw-resize; }
+figure.custom-figure .fig-corner.br { cursor: nwse-resize; }
+figure.custom-figure .fig-corner.bl { cursor: nesw-resize; }
+
+figure.custom-figure .fig-corner:focus { outline: 2px solid rgba(30,144,255,0.18); }
+figure.custom-figure .fig-corner:hover { transform: scale(1.18); box-shadow: 0 10px 30px rgba(17,24,39,0.14); }
+
+/* larger touch hit area */
+figure.custom-figure .fig-corner::before {
+  content:"";
+  position:absolute;
+  left:-10px; top:-10px;
+  width:36px; height:36px;
+  background:transparent;
+  border-radius: 12px;
+}
+
+/* overlay displaying size and percent + aspect icon */
+figure.custom-figure .resize-overlay {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  background: rgba(12,16,22,0.9);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  z-index: 200;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-shadow: 0 8px 24px rgba(8,12,20,0.35);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease, transform .12s ease;
+  white-space: nowrap;
+}
+
+/* visible when active during resizing */
+figure.custom-figure.resizing .resize-overlay { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* aspect lock icon */
+figure.custom-figure .resize-overlay .aspect {
+  width:16px;height:16px;border-radius:4px;background:transparent;display:inline-flex;align-items:center;justify-content:center;font-weight:700;
+  opacity:0.95;font-size:12px;
+}
+
+/* guide lines */
+figure.custom-figure .resize-guide-h,
+figure.custom-figure .resize-guide-v {
+  position: absolute;
+  background: rgba(30,144,255,0.14);
+  z-index: 120;
+  pointer-events: none;
+  display: none;
+}
+figure.custom-figure.resizing .resize-guide-h,
+figure.custom-figure.resizing .resize-guide-v { display:block; }
+
+/* horizontal dashed (thin) */
+figure.custom-figure .resize-guide-h {
+  height: 1px;
+  left: -2000px;
+  right: -2000px;
+  border-top: 1px dashed rgba(30,144,255,0.18);
+}
+
+/* vertical dashed */
+figure.custom-figure .resize-guide-v {
+  width: 1px;
+  top: -2000px;
+  bottom: -2000px;
+  border-left: 1px dashed rgba(30,144,255,0.18);
+}
+
+/* subtle snap indicator */
+figure.custom-figure .snap-dot {
+  position:absolute;width:8px;height:8px;border-radius:50%;background:#1e90ff;border:2px solid #fff;box-shadow:0 6px 14px rgba(30,144,255,0.16);z-index:170;display:none;
+}
+figure.custom-figure.snap .snap-dot { display:block; }
+
+/* toolbar tweaks (slightly lifted for contrast) */
+.figure-toolbar{
+  position: absolute;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(16,24,40,0.06);
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(10,20,40,0.08);
+  z-index: 120;
+  font-size: 0.85rem;
+  transform-origin: top right;
+  transition: transform .12s ease, opacity .12s ease, top .12s ease;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  min-height: 36px;
+  gap: 4px;
+}
+figure.custom-figure:hover .figure-toolbar,
+figure.custom-figure:focus-within .figure-toolbar,
+figure.custom-figure.selected .figure-toolbar,
+figure.custom-figure.sized .figure-toolbar{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
 .ql-caption:focus{outline:none;box-shadow:0 0 0 3px rgba(66,153,225,0.12)}
 .quill-modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.45);display:none;align-items:center;justify-content:center;z-index:11000}
 .quill-modal-overlay.active{display:flex}
@@ -73,8 +207,24 @@ figure.custom-figure {
 }
 figure.custom-figure img,
 figure.custom-figure video { display:block; width:100%; height:auto; margin:0 auto; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
-figure.custom-figure .fig-resize-handle { position:absolute; right:8px; bottom:8px; width:14px; height:14px; background:#fff; border:1px solid #888; cursor:se-resize; border-radius:3px; z-index:40; }
+figure.custom-figure a[data-figure-link] { display: block; text-decoration: none; color: inherit; }
+
+/* Updated: handle positioned dynamically by JS; CSS keeps minimal defaults */
+figure.custom-figure .fig-resize-handle {
+  position:absolute;
+  /* positioned dynamically via JS to stay anchored to the media's bottom-right */
+  right: auto;
+  bottom: auto;
+  width:14px;
+  height:14px;
+  background:#fff;
+  border:1px solid #888;
+  cursor:se-resize;
+  border-radius:3px;
+  z-index:40;
+}
 figure.custom-figure .fig-resize-handle:after { content:""; display:block; width:8px; height:8px; margin:2px; border-right:2px solid #666; border-bottom:2px solid #666; }
+
 .figure-toolbar {
   position: absolute;
   top: -40px;
@@ -89,7 +239,21 @@ figure.custom-figure .fig-resize-handle:after { content:""; display:block; width
   z-index: 60;
   font-size: 13px;
 }
-.figure-toolbar button { background: transparent; border: 0; padding: 6px 8px; cursor: pointer; border-radius:4px; }
+.figure-toolbar button{
+  appearance: none;
+  border: 0;
+  background: transparent;
+  height: 28px;
+  width: 28px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px;
+  border-radius:6px;
+  cursor:pointer;
+  color: #263238;
+  transition: background .12s ease, transform .06s ease, box-shadow .06s;
+}
 .figure-toolbar button:hover { background:#f2f6fb; }
 figure.align-left { margin-left: 0; margin-right: auto; text-align: left; }
 figure.align-center { margin-left: auto; margin-right: auto; text-align: center; }
@@ -144,10 +308,63 @@ figure.align-right { margin-left: auto; margin-right: 0; text-align: right; }
   </div>
 </div>
 
+<!-- Link modal (for figure links) -->
+<div id="quill-link-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="quill-modal" role="document" aria-labelledby="quill-link-modal-title">
+    <h3 id="quill-link-modal-title">Add / Edit link for image or video</h3>
+    <div class="row">
+      <label>URL<input id="quill-link-url" type="text" placeholder="https://example.com/page" /></label>
+    </div>
+    
+    <div class="actions">
+      <button id="quill-link-cancel" class="btn ghost" type="button">Cancel</button>
+      <button id="quill-link-remove" class="btn" type="button">Remove link</button>
+      <button id="quill-link-insert" class="btn primary" type="button">Apply link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Size modal (for figure width/height) -->
+<div id="quill-size-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="quill-modal" role="document" aria-labelledby="quill-size-modal-title">
+    <h3 id="quill-size-modal-title">Set size for image / video</h3>
+    <div class="row">
+      <label>Width<input id="quill-size-width" type="text" placeholder="e.g. 320 or 50%" /></label>
+    </div>
+    <div class="row">
+      <label>Height<input id="quill-size-height" type="text" placeholder="e.g. 240 or auto" /></label>
+    </div>
+    <div class="row">
+      <label style="width:50%"><input id="quill-size-lock" type="checkbox" /> Lock aspect ratio</label>
+      <label style="width:50%"><small id="quill-size-intrinsic" style="color:var(--muted)"></small></label>
+    </div>
+    <div class="row">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" data-preset="25%">25%</button>
+        <button class="btn" data-preset="50%">50%</button>
+        <button class="btn" data-preset="75%">75%</button>
+        <button class="btn" data-preset="100%">100%</button>
+        <button class="btn" data-preset="320px">320px</button>
+        <button class="btn" data-preset="640px">640px</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="quill-size-cancel" class="btn ghost" type="button">Cancel</button>
+      <button id="quill-size-apply" class="btn primary" type="button">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- external libraries first, app script last -->
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
-
+<!-- your logic (see app.js) -->
 <script>
+	/* ---------------------------
+   all editor JS (blots, modals, observers, size modal)
+   Drop this file next to index.html
+   --------------------------- */
+
 /* ---------------------------
    Setup / Register modules (NO external resize module)
    --------------------------- */
@@ -225,7 +442,7 @@ NativeVideoBlot.className = 'ql-native-video';
 Quill.register(NativeVideoBlot);
 
 /* ---------------------------
-   FigureBlot (image/video + editable caption) — custom
+   FigureBlot (image/video + editable caption + link + size)
    --------------------------- */
 function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
 
@@ -239,6 +456,7 @@ class FigureBlot extends BlockEmbed {
     node.setAttribute('contenteditable', 'false');
 
     const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
+    let mediaEl;
     if (type === 'video') {
       const video = document.createElement('video');
       video.controls = true;
@@ -246,13 +464,26 @@ class FigureBlot extends BlockEmbed {
       const source = document.createElement('source');
       source.src = value.url || '';
       video.appendChild(source);
-      node.appendChild(video);
+      mediaEl = video;
     } else {
       const img = document.createElement('img');
       img.src = value.url || '';
       img.alt = value.caption || '';
       img.setAttribute('draggable', 'false');
-      node.appendChild(img);
+      mediaEl = img;
+    }
+
+    // if a link is provided, wrap media in anchor
+    if (value.link && value.link.href) {
+      const a = document.createElement('a');
+      a.href = value.link.href;
+      if (value.link.target) a.target = value.link.target;
+      if (value.link.rel) a.rel = value.link.rel;
+      a.setAttribute('data-figure-link', '1');
+      a.appendChild(mediaEl);
+      node.appendChild(a);
+    } else {
+      node.appendChild(mediaEl);
     }
 
     const caption = document.createElement('figcaption');
@@ -261,7 +492,10 @@ class FigureBlot extends BlockEmbed {
     caption.innerText = value.caption || '';
     node.appendChild(caption);
 
+    // apply size if provided
     if (value.width) node.style.width = value.width;
+    if (value.height) node.style.height = value.height;
+
     if (value.align) {
       node.classList.remove('align-left','align-center','align-right');
       node.classList.add('align-' + value.align);
@@ -273,12 +507,31 @@ class FigureBlot extends BlockEmbed {
   static value(node) {
     const media = node.querySelector('img,video');
     const caption = node.querySelector('figcaption');
-    const url = media ? (media.tagName.toLowerCase() === 'video' ? (media.querySelector('source')?.getAttribute('src') || '') : media.getAttribute('src')) : '';
-    const type = media ? media.tagName.toLowerCase() : 'image';
+    let url = '';
+    let type = 'image';
+    if (media) {
+      if (media.tagName.toLowerCase() === 'video') {
+        const src = media.querySelector('source')?.getAttribute('src') || media.getAttribute('src') || '';
+        url = src;
+        type = 'video';
+      } else {
+        url = media.getAttribute('src') || '';
+        type = 'image';
+      }
+    }
+
+    // link extraction (if media is wrapped in anchor)
+    let link = null;
+    const anchor = node.querySelector('a[data-figure-link]') || (media && media.closest && media.closest('a'));
+    if (anchor) {
+      link = { href: anchor.getAttribute('href') || '', target: anchor.getAttribute('target') || '', rel: anchor.getAttribute('rel') || '' };
+    }
+
     const width = node.style.width || '';
+    const height = node.style.height || '';
     const align = (node.classList.contains('align-left') && 'left') ||
                   (node.classList.contains('align-right') && 'right') || 'center';
-    return { url, type, caption: (caption ? caption.innerText : ''), width, align };
+    return { url, type, caption: (caption ? caption.innerText : ''), width, height, align, link };
   }
 }
 Quill.register(FigureBlot);
@@ -374,14 +627,13 @@ try {
     const Delta = Quill.import('delta');
 
     Clipboard.addMatcher('IMG', (node, delta) => {
-      // If we are currently handling a drop/upload, ignore clipboard HTML inserts
       if (window.__suppressDropInserts) return new Delta();
 
       const src = node.getAttribute('src') || '';
       if (!src) return delta;
       const key = normalizeUrl(src);
       if (wasRecentlyInserted(key)) return new Delta();
-      markInserted(key); // mark early to prevent races
+      markInserted(key);
       return new Delta().insert({ figure: { url: src, type: 'image', caption: '' } }).insert('\n');
     });
 
@@ -398,12 +650,8 @@ try {
   }
 } catch (e) { /* ignore */ }
 
-
 /* ---------------------------
    attachMediaResizeSync (uses ResizeObserver)
-   --------------------------- */
-/* ---------------------------
-   attachMediaResizeSync (stable, no loop)
    --------------------------- */
 function attachMediaResizeSync(mediaEl, containerEl) {
   if (!mediaEl) return;
@@ -411,7 +659,6 @@ function attachMediaResizeSync(mediaEl, containerEl) {
   if (target.__mediaResizeAttached) return;
   target.__mediaResizeAttached = true;
 
-  // Guard to avoid re-entrant updates
   if (typeof target.__mediaResizeApplying === 'undefined') target.__mediaResizeApplying = false;
 
   const applyCaptionWidth = (widthPx) => {
@@ -419,30 +666,26 @@ function attachMediaResizeSync(mediaEl, containerEl) {
       let next = mediaEl.nextSibling;
       while (next && next.nodeType !== 1) next = next.nextSibling;
       if (next && next.classList && next.classList.contains('ql-caption')) {
-        // keep caption flexible instead of forcing pixel sizes that can bounce
         next.style.width = '100%';
         next.style.maxWidth = '100%';
         next.style.marginLeft = next.style.marginRight = 'auto';
         next.style.boxSizing = 'border-box';
       }
-    } catch (err) { /* ignore */ }
+    } catch (err) { }
   };
 
   const sync = () => {
     try {
       if (target.__mediaResizeApplying) return;
-      // Measure the container (figure) when available — more stable than measuring the media
       const rectSource = (target.getBoundingClientRect && target.getBoundingClientRect()) ||
                          (mediaEl.getBoundingClientRect && mediaEl.getBoundingClientRect()) || { width: 0 };
       let widthPx = Math.round(rectSource.width || 0);
 
-      // If computed style width is available and more reliable, try fallback
       if (!widthPx || widthPx === 0) {
         const cs = window.getComputedStyle(mediaEl);
         widthPx = parseInt(cs.width, 10) || 0;
       }
 
-      // If nothing meaningful, set auto and bail
       if (!widthPx || widthPx <= 0) {
         if (target.style.width && target.style.width !== 'auto') {
           target.style.width = 'auto';
@@ -451,31 +694,26 @@ function attachMediaResizeSync(mediaEl, containerEl) {
         return;
       }
 
-      // Avoid writing the same value over & over (prevents observer feedback loops)
       const current = parseInt((target.style.width || '').replace('px', ''), 10) || 0;
       if (current === widthPx) {
         applyCaptionWidth(widthPx);
         return;
       }
 
-      // Apply with a guard so ResizeObserver callbacks caused by this change don't re-enter
       target.__mediaResizeApplying = true;
       try {
         target.style.width = widthPx + 'px';
         target.style.maxWidth = '100%';
       } finally {
-        // schedule clearing the guard next tick so other observers can run afterwards
         requestAnimationFrame(() => { target.__mediaResizeApplying = false; });
       }
 
       applyCaptionWidth(widthPx);
-    } catch (err) { /* ignore */ }
+    } catch (err) { }
   };
 
   const ro = new ResizeObserver(sync);
   try { ro.observe(target); } catch (e) {}
-  // still safe to observe media too (some browsers change media size independently),
-  // but prefer observing the container first; observe media as a secondary target.
   try { if (mediaEl !== target) ro.observe(mediaEl); } catch (e) {}
 
   const mo = new MutationObserver(sync);
@@ -484,7 +722,6 @@ function attachMediaResizeSync(mediaEl, containerEl) {
   target.__mediaResizeObserver = ro;
   target.__mediaMutationObserver = mo;
 
-  // initial sync
   requestAnimationFrame(sync);
 }
 
@@ -496,7 +733,6 @@ function attachObserversToAllFigures(root = document) {
     try {
       const src = media.currentSrc || media.getAttribute && media.getAttribute('src') || '';
       if (src && wasRecentlyInserted(normalizeUrl(src))) {
-        // It was just inserted by our handler — avoid treating a simultaneous native insert as a new one
         return;
       }
       if (!media.closest('#root')) return;
@@ -520,7 +756,16 @@ function attachObserversToAllFigures(root = document) {
       const parent = media.parentElement;
       if (!parent) return;
       parent.insertBefore(figure, media);
-      figure.appendChild(media);
+
+      // if media is already inside an anchor, keep anchor
+      const anchor = media.closest && media.closest('a');
+      if (anchor && anchor.getAttribute && anchor.getAttribute('href')) {
+        anchor.setAttribute('data-figure-link', '1');
+        figure.appendChild(anchor);
+      } else {
+        figure.appendChild(media);
+      }
+
       if (hasCaption) {
         figure.appendChild(next);
       } else {
@@ -535,7 +780,7 @@ function attachObserversToAllFigures(root = document) {
       const innerMedia = figure.querySelector('img,video');
       if (innerMedia) attachMediaResizeSync(innerMedia, figure);
 
-    } catch (e) { /* ignore per element */ }
+    } catch (e) { }
   });
 
   (root || document).querySelectorAll('figure.custom-figure img, figure.custom-figure video').forEach(media => {
@@ -565,7 +810,7 @@ function wireModal(opts) {
     preview.innerHTML = 'Preview';
     overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(()=> urlInput.focus(), 50);
   }
-  function closeModal() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true'); urlInput.value=''; fileInput.value=''; captionInput.value=''; preview.innerHTML='Preview'; selectedDataUrl = null; editor.focus(); }
+  function closeModal() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true'); urlInput.value=''; fileInput.value=''; captionInput.value=''; selectedDataUrl = null; editor.focus(); }
   function updatePreview() { const url = urlInput.value.trim(); const src = selectedDataUrl || url; if (!src) { preview.innerHTML = 'Preview'; return; } preview.innerHTML = ''; if (opts.type === 'image') { const img = document.createElement('img'); img.src = src; img.alt = captionInput.value || 'Preview image'; preview.appendChild(img); } else { const video = document.createElement('video'); video.controls = true; video.src = src; video.playsInline = true; preview.appendChild(video); } }
 
   fileInput.addEventListener('change', (ev) => {
@@ -589,7 +834,7 @@ function wireModal(opts) {
 
     const index = Math.max(0, lastSelectionIndex);
     const type = opts.type === 'video' || urlLooksLikeVideo(finalSrc) ? 'video' : 'image';
-    editor.insertEmbed(index, 'figure', { url: finalSrc, type, caption: caption || '', width: '', align: 'center' }, Quill.sources.USER);
+    editor.insertEmbed(index, 'figure', { url: finalSrc, type, caption: caption || '', width: '', height: '', align: 'center' }, Quill.sources.USER);
     editor.insertText(index + 1, '\n', Quill.sources.SILENT);
     editor.setSelection(index + 2, 0, Quill.sources.SILENT);
     setTimeout(() => attachObserversToAllFigures(), 60);
@@ -623,6 +868,234 @@ const videoModal = wireModal({
 });
 
 /* ---------------------------
+   Link modal (for figure links)
+   --------------------------- */
+function wireLinkModal() {
+  const overlay = document.getElementById('quill-link-modal-overlay');
+  const urlInput = document.getElementById('quill-link-url');
+  const btnCancel = document.getElementById('quill-link-cancel');
+  const btnInsert = document.getElementById('quill-link-insert');
+  const btnRemove = document.getElementById('quill-link-remove');
+
+  let currentFigure = null;
+
+  function openModalForFigure(fig) {
+    currentFigure = fig;
+    // prefill
+    const val = FigureBlot.value(fig);
+    const link = val.link || { href: '', target: '', rel: '' };
+    urlInput.value = link.href || '';
+    overlay.classList.add('active'); overlay.setAttribute('aria-hidden', 'false'); setTimeout(()=> urlInput.focus(), 50);
+  }
+  function close() { overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true'); urlInput.value=''; currentFigure = null; editor.focus(); }
+
+  btnCancel.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === urlInput) { e.preventDefault(); btnInsert.click(); } } });
+
+  function applyLinkToFigure(fig, linkObj) {
+    if (!fig) return;
+    try {
+      // ensure media exists
+      const media = fig.querySelector('img,video');
+      if (!media) return;
+
+      // remove old anchor
+      const existingAnchor = fig.querySelector('a[data-figure-link]') || (media.closest && media.closest('a'));
+      if (linkObj && linkObj.href) {
+        // create/update anchor
+        let anchor;
+        if (existingAnchor) {
+          anchor = existingAnchor;
+          anchor.setAttribute('href', linkObj.href);
+          if (linkObj.target) anchor.setAttribute('target', linkObj.target); else anchor.removeAttribute('target');
+          if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel); else anchor.removeAttribute('rel');
+          // ensure media is inside anchor
+          if (anchor !== media.parentElement) {
+            anchor.appendChild(media);
+          }
+        } else {
+          anchor = document.createElement('a');
+          anchor.setAttribute('data-figure-link', '1');
+          anchor.setAttribute('href', linkObj.href);
+          if (linkObj.target) anchor.setAttribute('target', linkObj.target);
+          if (linkObj.rel) anchor.setAttribute('rel', linkObj.rel);
+          // move media into anchor
+          fig.insertBefore(anchor, media);
+          anchor.appendChild(media);
+        }
+      } else {
+        // remove anchor if present
+        if (existingAnchor) {
+          // move media out and remove anchor
+          if (existingAnchor.contains(media)) {
+            existingAnchor.parentElement.insertBefore(media, existingAnchor);
+          }
+          existingAnchor.remove();
+        }
+      }
+
+      // update blot value
+      const blot = Quill.find(fig);
+      if (blot) {
+        const idx = editor.getIndex(blot);
+        const val = FigureBlot.value(fig);
+        editor.deleteText(idx, 1, Quill.sources.SILENT);
+        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+      }
+    } catch (err) { console.warn('applyLinkToFigure failed', err); }
+  }
+
+  btnInsert.addEventListener('click', () => {
+    const href = (urlInput.value || '').trim();
+    if (!href) { urlInput.focus(); return; }
+    const linkObj = { href, target: '_blank' , rel: 'noopener noreferrer' };
+    applyLinkToFigure(currentFigure, linkObj);
+    close();
+  });
+
+  btnRemove.addEventListener('click', () => {
+    applyLinkToFigure(currentFigure, null);
+    close();
+  });
+
+  return { openForFigure: openModalForFigure };
+}
+const linkModal = wireLinkModal();
+
+/* ---------------------------
+   Size modal (for setting width/height) 
+   - user-friendly presets
+   - lock aspect ratio
+   - stores width & height on blot
+   --------------------------- */
+function wireSizeModal() {
+  const overlay = document.getElementById('quill-size-modal-overlay');
+  const widthInput = document.getElementById('quill-size-width');
+  const heightInput = document.getElementById('quill-size-height');
+  const lockCheckbox = document.getElementById('quill-size-lock');
+  const intrinsicEl = document.getElementById('quill-size-intrinsic');
+  const btnCancel = document.getElementById('quill-size-cancel');
+  const btnApply = document.getElementById('quill-size-apply');
+  const presetBtns = overlay.querySelectorAll('[data-preset]');
+
+  let currentFigure = null;
+  let intrinsic = { w: 0, h: 0, ratio: 1 };
+
+  function parseSizeInput(val) {
+    if (!val) return null;
+    val = String(val).trim();
+    if (val === 'auto') return 'auto';
+    if (val.endsWith('%')) return val;
+    if (val.endsWith('px')) return val;
+    // number assumed px
+    if (/^\d+$/.test(val)) return val + 'px';
+    return val; // return raw if weird
+  }
+
+  function openForFigure(fig) {
+    currentFigure = fig;
+    const val = FigureBlot.value(fig);
+    // try to determine intrinsic size from media
+    const media = fig.querySelector('img,video');
+    intrinsic = { w: 0, h: 0, ratio: 1 };
+    if (media) {
+      if (media.tagName.toLowerCase() === 'img') {
+        intrinsic.w = media.naturalWidth || 0;
+        intrinsic.h = media.naturalHeight || 0;
+      } else if (media.tagName.toLowerCase() === 'video') {
+        intrinsic.w = media.videoWidth || media.clientWidth || 0;
+        intrinsic.h = media.videoHeight || media.clientHeight || 0;
+      }
+      intrinsic.ratio = (intrinsic.h && intrinsic.w) ? (intrinsic.w / intrinsic.h) : 1;
+    }
+
+    intrinsicEl.textContent = intrinsic.w && intrinsic.h ? `Intrinsic: ${intrinsic.w}×${intrinsic.h}` : '';
+
+    widthInput.value = val.width || '';
+    heightInput.value = val.height || '';
+    lockCheckbox.checked = true;
+
+    // wire lock behaviour: when width changes and lock is checked, update height accordingly
+    widthInput.oninput = () => {
+      if (!lockCheckbox.checked) return;
+      const w = parseSizeInput(widthInput.value);
+      if (!w) return;
+      // handle percent -> can't compute absolute height reliably; keep height blank
+      if (typeof w === 'string' && w.endsWith('%')) { heightInput.value = ''; return; }
+      const px = parseInt(String(w).replace('px',''),10);
+      if (!px || !intrinsic.ratio) return;
+      const newH = Math.round(px / intrinsic.ratio);
+      heightInput.value = newH + 'px';
+    };
+    heightInput.oninput = () => {
+      if (!lockCheckbox.checked) return;
+      const h = parseSizeInput(heightInput.value);
+      if (!h) return;
+      if (typeof h === 'string' && h.endsWith('%')) { widthInput.value = ''; return; }
+      const ph = parseInt(String(h).replace('px',''),10);
+      if (!ph || !intrinsic.ratio) return;
+      const newW = Math.round(ph * intrinsic.ratio);
+      widthInput.value = newW + 'px';
+    };
+
+    presetBtns.forEach(btn => btn.addEventListener('click', presetHandler));
+
+    overlay.classList.add('active'); overlay.setAttribute('aria-hidden','false');
+    setTimeout(()=> widthInput.focus(), 50);
+  }
+
+  function presetHandler(ev) {
+    const p = ev.currentTarget.getAttribute('data-preset');
+    widthInput.value = p;
+    // simulate input
+    widthInput.dispatchEvent(new Event('input'));
+  }
+
+  function close() {
+    presetBtns.forEach(btn => btn.removeEventListener('click', presetHandler));
+    overlay.classList.remove('active'); overlay.setAttribute('aria-hidden','true');
+    widthInput.value=''; heightInput.value=''; lockCheckbox.checked=false; intrinsicEl.textContent=''; currentFigure=null;
+    editor.focus();
+  }
+
+  btnCancel.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } if (e.key === 'Enter') { if (document.activeElement === widthInput || document.activeElement === heightInput) { e.preventDefault(); btnApply.click(); } } });
+
+  btnApply.addEventListener('click', () => {
+    if (!currentFigure) return;
+    const w = parseSizeInput(widthInput.value);
+    const h = parseSizeInput(heightInput.value);
+
+    try {
+      if (w) currentFigure.style.width = w;
+      else currentFigure.style.removeProperty('width');
+      if (h && h !== 'auto') currentFigure.style.height = h;
+      else currentFigure.style.removeProperty('height');
+
+      // update blot
+      const blot = Quill.find(currentFigure);
+      if (blot) {
+        const idx = editor.getIndex(blot);
+        const val = FigureBlot.value(currentFigure);
+        val.width = currentFigure.style.width || '';
+        val.height = currentFigure.style.height || '';
+        editor.deleteText(idx, 1, Quill.sources.SILENT);
+        editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+      }
+    } catch (err) {
+      console.warn('apply size failed', err);
+    }
+
+    close();
+  });
+
+  return { openForFigure };
+}
+const sizeModal = wireSizeModal();
+
+/* ---------------------------
    Toolbar handlers
    --------------------------- */
 const toolbar = editor.getModule('toolbar');
@@ -635,18 +1108,37 @@ if (toolbar) {
     editor.insertText(range.index + 1, '\n', Quill.sources.SILENT);
     editor.setSelection(range.index + 2, 0, Quill.sources.SILENT);
   });
+
+  // custom link handler: if a figure is selected or caret inside a figure, open figure-link modal
+  toolbar.addHandler('link', () => {
+    // try detect figure under selection
+    const sel = window.getSelection && window.getSelection();
+    let node = sel && sel.anchorNode;
+    if (!node) return;
+    const fig = node.closest && node.closest('figure.custom-figure');
+    if (fig) {
+      // open modal for this figure
+      linkModal.openForFigure(fig);
+      return;
+    }
+
+    // fallback to default text link prompt
+    const range = editor.getSelection();
+    const url = prompt('Enter the URL for selected text');
+    if (url) {
+      editor.format('link', url, Quill.sources.USER);
+    }
+  });
 }
 
 /* ---------------------------
    Tooltip system (unchanged)
    --------------------------- */
 const TOOLTIP_MAP = { bold: 'Bold (Ctrl+B)', italic: 'Italic (Ctrl+I)', underline: 'Underline (Ctrl+U)', strike: 'Strikethrough', blockquote: 'Blockquote', 'code-block': 'Code block', 'header:1': 'Heading 1','header:2': 'Heading 2', 'list:ordered': 'Ordered list', 'list:bullet': 'Bulleted list', 'list:check': 'Checklist','script:sub': 'Subscript', 'script:super': 'Superscript','indent:-1': 'Decrease indent','indent:+1': 'Increase indent','direction:rtl': 'Right-to-left', 'align': 'Alignment', 'size': 'Font size', 'color': 'Text color', 'background': 'Background color','font': 'Font family', link: 'Insert link', image: 'Insert image', video: 'Insert video', formula: 'Insert formula', 'table-better': 'Table tools', clean: 'Remove formatting', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y / Ctrl+Shift+Z)' };
-// create tooltip element (keep your TOOLTIP_MAP above)
 const tooltipEl = document.createElement('div');
 tooltipEl.className = 'ql-custom-tooltip';
 document.body.appendChild(tooltipEl);
 
-// keep your detectFormatFromNode() as-is if you want; using the original:
 function detectFormatFromNode(node) {
   if (!node) return null;
   for (const cls of node.classList) {
@@ -661,7 +1153,6 @@ function detectFormatFromNode(node) {
   return null;
 }
 
-// prefer dataset.tooltip, then aria-label, then format-map
 function getTooltipTextForNode(node) {
   if (!node) return '';
   if (node.dataset && node.dataset.tooltip) return node.dataset.tooltip;
@@ -682,7 +1173,6 @@ function getTooltipTextForNode(node) {
   }
   return k.charAt(0).toUpperCase() + k.slice(1);
 }
-
 let mouseMoveHandler = null;
 function positionTooltip(target, event) {
   const rect = target.getBoundingClientRect();
@@ -711,11 +1201,9 @@ function showTooltip(target, event) {
   tooltipEl.textContent = text;
   tooltipEl.classList.add('visible');
   positionTooltip(target, event);
-  // attach a single mousemove handler for live positioning; keep one global reference
   mouseMoveHandler = (ev) => positionTooltip(target, ev);
   document.addEventListener('mousemove', mouseMoveHandler);
 }
-
 function hideTooltip() {
   tooltipEl.classList.remove('visible');
   tooltipEl.textContent = '';
@@ -724,19 +1212,15 @@ function hideTooltip() {
     mouseMoveHandler = null;
   }
 }
-
 function attachToolbarTooltips() {
   const toolbarEl = document.querySelector('.ql-toolbar');
   if (!toolbarEl) return;
 
-  // candidate controls inside toolbar
   const controls = toolbarEl.querySelectorAll('button, .ql-picker, .ql-picker-label, select, input');
 
   controls.forEach(ctrl => {
-    // skip if this element is already bound
     if (ctrl.dataset && ctrl.dataset.tooltipBound) return;
 
-    // if any ancestor inside the toolbar is already bound, skip this element to prevent nested double-bind
     let anc = ctrl.parentElement;
     let skip = false;
     while (anc && anc !== toolbarEl) {
@@ -745,25 +1229,21 @@ function attachToolbarTooltips() {
     }
     if (skip) return;
 
-    // mark this element as bound
     ctrl.dataset.tooltipBound = '1';
 
-    // compute tooltip text and store it on dataset (remove title to avoid native tooltip)
     const title = getTooltipTextForNode(ctrl) || '';
     if (title) {
       ctrl.dataset.tooltip = title;
-      ctrl.setAttribute('aria-label', title); // keep accessible
-      ctrl.removeAttribute('title'); // IMPORTANT: remove native title so browser tooltip won't show
+      ctrl.setAttribute('aria-label', title);
+      ctrl.removeAttribute('title');
     }
 
-    // bind events (single set)
     ctrl.addEventListener('mouseenter', (ev) => showTooltip(ctrl, ev));
     ctrl.addEventListener('mouseleave', hideTooltip);
     ctrl.addEventListener('click', hideTooltip);
   });
 }
 
-// initial attach + observe
 attachToolbarTooltips();
 const toolbarObserver = new MutationObserver(() => attachToolbarTooltips());
 const tb = document.querySelector('.ql-toolbar');
@@ -789,14 +1269,13 @@ editorRoot.addEventListener("dragleave", (e) => {
 function findExistingMediaElementBySrc(url) {
   if (!url) return null;
   const norm = normalizeUrl(url);
-  // match images and videos; compare using element.currentSrc (preferred) or src attribute
   const imgs = Array.from(editor.root.querySelectorAll('img'));
   for (const img of imgs) {
     try {
       const s = img.currentSrc || img.getAttribute('src') || '';
       if (!s) continue;
       if (normalizeUrl(s) === norm) return img;
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
   }
   const vids = Array.from(editor.root.querySelectorAll('video'));
   for (const v of vids) {
@@ -804,7 +1283,7 @@ function findExistingMediaElementBySrc(url) {
       const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
       if (!s) continue;
       if (normalizeUrl(s) === norm) return v;
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
   }
   return null;
 }
@@ -817,41 +1296,31 @@ editorRoot.addEventListener("drop", (e) => {
 
   if (!e.dataTransfer) return;
 
-  // build file list (prefer items -> files)
   const items = Array.from(e.dataTransfer.items || []);
   const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
   const fallbackFiles = Array.from(e.dataTransfer.files || []);
   const realFiles = files.length ? files : fallbackFiles;
 
   if (!realFiles.length) {
-    // no files — let other handlers (clipboard/uri) run normally (they'll dedupe)
     return;
   }
 
-  // INSERT SEQUENCE: suppress other handlers briefly
   const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
   let insertIndex = Math.max(0, selection.index);
 
-  // enable suppression
   window.__suppressDropInserts = true;
-  // clear suppression after a safe window
   const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
 
-  // process files sequentially to keep order
   (async () => {
     for (const file of realFiles) {
       try {
-        // inside your drop handler, when you have a single `file` (or in your loop):
         if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
           (async () => {
-            // set suppression early (prevent clipboard matcher etc.)
             window.__suppressDropInserts = true;
             const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
-
             try {
               let finalUrl;
               if (file.type.startsWith("image/")) {
-                // read dataURL for image (you may prefer blob for performance — adjust if needed)
                 finalUrl = await new Promise((res, rej) => {
                   const r = new FileReader();
                   r.onload = (ev) => res(ev.target.result);
@@ -859,12 +1328,10 @@ editorRoot.addEventListener("drop", (e) => {
                   r.readAsDataURL(file);
                 });
               } else {
-                // video: try blob first
                 try {
                   finalUrl = URL.createObjectURL(file);
                   blobUrlTracker.add(finalUrl);
                 } catch (err) {
-                  // fallback to dataURL if blob fails
                   finalUrl = await new Promise((res, rej) => {
                     const r = new FileReader();
                     r.onload = (ev) => res(ev.target.result);
@@ -873,28 +1340,20 @@ editorRoot.addEventListener("drop", (e) => {
                   });
                 }
               }
-
               if (!finalUrl) return;
-
               const key = normalizeUrl(finalUrl);
-              // mark BEFORE inserting to avoid races
               markInserted(key);
 
-              // If a plain <img> or <video> already exists with the same src, convert/update it to a figure
               const existing = findExistingMediaElementBySrc(finalUrl);
 
               if (existing) {
-                // Try to find the blot for the existing element (if present)
                 try {
-                  // If it's already inside a figure.custom-figure, we are probably done
                   const fig = existing.closest && existing.closest('figure.custom-figure');
                   if (fig) {
-                    // update its media src to the canonical finalUrl if needed
                     const media = fig.querySelector('img, video');
                     if (media) {
                       if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
                           (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
-                        // update DOM & re-sync blot
                         if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
                         else {
                           const srcEl = media.querySelector('source') || document.createElement('source');
@@ -902,7 +1361,6 @@ editorRoot.addEventListener("drop", (e) => {
                           if (!media.querySelector('source')) media.appendChild(srcEl);
                           media.load && media.load();
                         }
-                        // update blot by re-inserting value (best-effort)
                         const parentBlot = Quill.find(fig);
                         if (parentBlot) {
                           const idx = editor.getIndex(parentBlot);
@@ -912,15 +1370,12 @@ editorRoot.addEventListener("drop", (e) => {
                         }
                       }
                     }
-                    // move caret to after figure, done
                     const blot = Quill.find(fig);
                     if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
                     clearSuppressionLater();
                     setTimeout(() => attachObserversToAllFigures(), 60);
                     return;
                   }
-
-                  // If not inside a figure, try to find its blot and replace with figure embed
                   const blot = Quill.find(existing);
                   if (blot) {
                     const idx = editor.getIndex(blot);
@@ -934,12 +1389,10 @@ editorRoot.addEventListener("drop", (e) => {
                     return;
                   }
                 } catch (err) {
-                  // fallthrough to normal insert below
                   console.warn('existing-media convert failed', err);
                 }
               }
 
-              // No existing element we could convert — do a normal insert (we already marked)
               const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
               const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
               editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
@@ -960,39 +1413,119 @@ editorRoot.addEventListener("drop", (e) => {
       }
     }
 
-    // finalise
     setTimeout(() => attachObserversToAllFigures(), 80);
-    // place caret after last inserted blot
     editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
     clearSuppression();
   })();
 });
-
 /* ---------------------------
-   Controls attachment for figure (toolbar, resize handle, caption edit)
+   Controls attachment for figure (toolbar, resize handle, caption edit, link)
    --------------------------- */
-function attachControls(figureEl) {
+   function attachControls(figureEl) {
   if (!figureEl || figureEl.__controlsAttached) return;
   figureEl.__controlsAttached = true;
 
+  // ensure relative positioning & sane default width
   figureEl.style.position = getComputedStyle(figureEl).position === 'static' ? 'relative' : figureEl.style.position;
   if (!figureEl.style.width) figureEl.style.width = '320px';
 
-  const handle = document.createElement('div');
-  handle.className = 'fig-resize-handle';
-  figureEl.appendChild(handle);
+  // cleanup old extras if any (defensive)
+  Array.from(figureEl.querySelectorAll('.fig-corner, .resize-overlay, .resize-guide-h, .resize-guide-v, .snap-dot, .figure-toolbar')).forEach(n => n.remove());
 
+  // create four rounded corner handles
+  const corners = {
+    tl: document.createElement('button'),
+    tr: document.createElement('button'),
+    br: document.createElement('button'),
+    bl: document.createElement('button'),
+  };
+  Object.entries(corners).forEach(([k, el]) => {
+    el.className = 'fig-corner ' + k;
+    el.setAttribute('aria-label', `Resize ${k}`);
+    el.setAttribute('role','slider');
+    el.setAttribute('tabindex','0');
+    figureEl.appendChild(el);
+  });
+
+  // resize overlay (center top) showing size & percent & aspect lock
+  const overlay = document.createElement('div');
+  overlay.className = 'resize-overlay';
+  overlay.innerHTML = `<span class="size-text">0×0 px</span><span class="percent-text">0%</span><span class="aspect" title="Aspect ratio (Alt to temporarily unlock)">🔒</span>`;
+  figureEl.appendChild(overlay);
+
+  // guide lines and snap indicator
+  const hGuide = document.createElement('div'); hGuide.className = 'resize-guide-h';
+  const vGuide = document.createElement('div'); vGuide.className = 'resize-guide-v';
+  const snapDot = document.createElement('div'); snapDot.className = 'snap-dot';
+  figureEl.appendChild(hGuide); figureEl.appendChild(vGuide); figureEl.appendChild(snapDot);
+
+  // toolbar reuse (same content as before)
   const toolbarEl = document.createElement('div');
   toolbarEl.className = 'figure-toolbar';
   toolbarEl.innerHTML = `
     <button data-action="align-left" title="Align left">L</button>
     <button data-action="align-center" title="Align center">C</button>
     <button data-action="align-right" title="Align right">R</button>
+    <button data-action="link" title="Add/Edit link">🔗</button>
     <button data-action="edit-caption" title="Edit caption">✎</button>
+    <button data-action="size" title="Set size">⤢</button>
     <button data-action="remove" title="Remove">🗑</button>
   `;
   figureEl.appendChild(toolbarEl);
 
+  // helper: update overlay values + aspect icon
+  function updateOverlay(w, h) {
+    const sizeText = overlay.querySelector('.size-text');
+    const pctText = overlay.querySelector('.percent-text');
+    const aspectIcon = overlay.querySelector('.aspect');
+    const wI = Math.round(w || figureEl.getBoundingClientRect().width);
+    const hI = Math.round(h || figureEl.querySelector('img,video')?.offsetHeight || 0);
+    sizeText.textContent = `${wI}×${hI} px`;
+
+    // percent width relative to editor root
+    const editorW = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1;
+    const pct = Math.round((wI / editorW) * 100);
+    pctText.textContent = `${pct}%`;
+
+    // aspect lock display (default lock)
+    if (figureEl.__aspectLocked === false) aspectIcon.textContent = '🔓';
+    else aspectIcon.textContent = '🔒';
+  }
+
+  // position corners relative to media
+  function updateCornerPositions() {
+    try {
+      const media = figureEl.querySelector('img,video');
+      if (!media) return;
+      const mRect = media.getBoundingClientRect();
+      const fRect = figureEl.getBoundingClientRect();
+      const offsetLeft = media.offsetLeft || (mRect.left - fRect.left);
+      const offsetTop = media.offsetTop || (mRect.top - fRect.top);
+      const w = media.offsetWidth || mRect.width;
+      const h = media.offsetHeight || mRect.height;
+      const inset = 8;
+
+      // left/top, right/top, right/bottom, left/bottom
+      corners.tl.style.left = Math.max(0, offsetLeft + inset) + 'px';
+      corners.tl.style.top = Math.max(0, offsetTop + inset) + 'px';
+
+      corners.tr.style.left = Math.min(figureEl.clientWidth - 18, offsetLeft + w - 18 - inset) + 'px';
+      corners.tr.style.top = Math.max(0, offsetTop + inset) + 'px';
+
+      corners.br.style.left = Math.min(figureEl.clientWidth - 18, offsetLeft + w - 18 - inset) + 'px';
+      corners.br.style.top = Math.min(figureEl.clientHeight - 18, offsetTop + h - 18 - inset) + 'px';
+
+      corners.bl.style.left = Math.max(0, offsetLeft + inset) + 'px';
+      corners.bl.style.top = Math.min(figureEl.clientHeight - 18, offsetTop + h - 18 - inset) + 'px';
+    } catch (e) { /* ignore */ }
+  }
+
+  const ro = new ResizeObserver(updateCornerPositions);
+  try { ro.observe(figureEl); ro.observe(figureEl.querySelector('img,video')); } catch(e){}
+
+  requestAnimationFrame(updateCornerPositions);
+
+  // selection logic (same)
   figureEl.addEventListener('click', (evt) => {
     if (evt.target.tagName && evt.target.tagName.toLowerCase() === 'figcaption') {
       figureEl.classList.add('selected');
@@ -1001,127 +1534,240 @@ function attachControls(figureEl) {
     document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
     figureEl.classList.add('selected');
   });
-
   editor.root.addEventListener('click', (e) => {
     const el = e.target.closest && e.target.closest('figure.custom-figure');
     if (!el) document.querySelectorAll('figure.custom-figure').forEach(f => f.classList.remove('selected'));
   });
 
+  // toolbar behavior (unchanged)
   toolbarEl.addEventListener('click', (ev) => {
     const action = ev.target.closest('button')?.dataset?.action;
     if (!action) return;
     ev.stopPropagation();
-
     if (action === 'remove') {
-      try {
-        const blot = Quill.find(figureEl);
-        if (blot) {
-          const idx = editor.getIndex(blot);
-          editor.deleteText(idx, 1, Quill.sources.USER);
-        } else {
-          figureEl.remove();
-        }
-      } catch (e) {
-        try { figureEl.remove(); } catch(e) {}
-      }
+      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); editor.deleteText(idx, 1, Quill.sources.USER); } else { figureEl.remove(); } } catch(e){ try{ figureEl.remove(); }catch(e){}}
     } else if (action === 'edit-caption') {
       const caption = figureEl.querySelector('.ql-caption, figcaption');
-      if (caption) {
-        editor.disable();
-        caption.focus();
-        const range = document.createRange();
-        range.selectNodeContents(caption);
-        range.collapse(false);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    } else if (action.startsWith('align-')) {
+      if (caption) { editor.disable(); caption.focus(); const range = document.createRange(); range.selectNodeContents(caption); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+    } else if (action === 'link') { linkModal.openForFigure(figureEl); }
+    else if (action === 'size') { sizeModal.openForFigure(figureEl); }
+    else if (action.startsWith('align-')) {
       figureEl.classList.remove('align-left','align-center','align-right');
       const alignType = action.split('-')[1];
       if (alignType === 'center') figureEl.classList.add('align-center');
       else if (alignType === 'left') figureEl.classList.add('align-left');
       else if (alignType === 'right') figureEl.classList.add('align-right');
-
-      try {
-        const blot = Quill.find(figureEl);
-        if (blot) {
-          const idx = editor.getIndex(blot);
-          const val = FigureBlot.value(figureEl);
-          editor.deleteText(idx, 1, Quill.sources.SILENT);
-          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-        }
-      } catch (e) {}
+      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch(e){}
     }
   });
 
+  // caption edit handling
   const captionEl = figureEl.querySelector('.ql-caption, figcaption');
   if (captionEl) {
-    captionEl.addEventListener('focus', (e) => {
-      e.stopPropagation();
-      figureEl.classList.add('selected');
-      try { editor.disable(); } catch(e) {}
-    });
+    captionEl.addEventListener('focus', (e) => { e.stopPropagation(); figureEl.classList.add('selected'); try { editor.disable(); } catch(e) {} });
     captionEl.addEventListener('blur', (e) => {
       try { editor.enable(); } catch(e) {}
-      try {
-        const blot = Quill.find(figureEl);
-        if (blot) {
-          const idx = editor.getIndex(blot);
-          const val = FigureBlot.value(figureEl);
-          editor.deleteText(idx, 1, Quill.sources.SILENT);
-          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-        }
-      } catch (err) {}
+      try { const blot = Quill.find(figureEl); if (blot) { const idx = editor.getIndex(blot); const val = FigureBlot.value(figureEl); editor.deleteText(idx, 1, Quill.sources.SILENT); editor.insertEmbed(idx, 'figure', val, Quill.sources.USER); } } catch (err) {}
     });
     captionEl.addEventListener('keydown', (e) => e.stopPropagation());
     captionEl.addEventListener('mousedown', (e) => e.stopPropagation());
   }
 
-  // pointer-based resize
-  let pointerId = null, startX = 0, startW = 0;
-  handle.addEventListener('pointerdown', (ev) => {
+  /* --- Enhanced corner pointer resizing with overlay/guides/snapping --- */
+  let activeId = null, start = {}, aspect = 1, initial = {}, resizing = false;
+  // default lock (true) unless figureEl.__aspectLocked is explicit
+  if (typeof figureEl.__aspectLocked === 'undefined') figureEl.__aspectLocked = true;
+
+  function showGuides(cx, cy) {
+    const media = figureEl.querySelector('img,video');
+    if (!media) return;
+    const mRect = media.getBoundingClientRect();
+    const fRect = figureEl.getBoundingClientRect();
+    // position hGuide at media center y, vGuide at media center x relative to figure
+    const centerY = (media.offsetTop || (mRect.top - fRect.top)) + (media.offsetHeight || mRect.height) / 2;
+    const centerX = (media.offsetLeft || (mRect.left - fRect.left)) + (media.offsetWidth || mRect.width) / 2;
+    hGuide.style.top = Math.round(centerY) + 'px';
+    vGuide.style.left = Math.round(centerX) + 'px';
+  }
+
+  function beginCorner(ev, key) {
     ev.preventDefault();
-    pointerId = ev.pointerId;
-    try { handle.setPointerCapture(pointerId); } catch (e) {}
-    startX = ev.clientX;
-    startW = figureEl.getBoundingClientRect().width;
+    activeId = key;
+    resizing = true;
     figureEl.classList.add('resizing');
-    document.body.style.userSelect = 'none';
-  });
+    try { ev.target.setPointerCapture(ev.pointerId); } catch(e){}
+    const media = figureEl.querySelector('img,video');
+    if (!media) return;
+    const rect = figureEl.getBoundingClientRect();
+    start.clientX = ev.clientX; start.clientY = ev.clientY;
+    initial.w = rect.width;
+    initial.h = media.offsetHeight || media.getBoundingClientRect().height || (initial.w / (media.naturalWidth && media.naturalHeight ? (media.naturalWidth / media.naturalHeight) : 1));
+    aspect = initial.w / (initial.h || 1);
+    // overlay visibility
+    overlay.style.opacity = 1;
+    updateOverlay(initial.w, initial.h);
+    showGuides();
+  }
 
-  handle.addEventListener('pointermove', (ev) => {
-    if (pointerId !== ev.pointerId) return;
-    const dx = ev.clientX - startX;
-    let newW = Math.max(80, startW + dx);
-    const editorWidth = editor.root.clientWidth;
-    newW = Math.min(newW, editorWidth - 20);
-    figureEl.style.width = newW + 'px';
-  });
+  function computeNewSize(ev) {
+    if (!resizing) return null;
+    const dx = ev.clientX - start.clientX;
+    const dy = ev.clientY - start.clientY;
+    let newW = initial.w, newH = initial.h;
+    // Determine lock state: Alt to unlock temporarily; Shift to force lock; default from figureEl.__aspectLocked
+    const lock = (figureEl.__aspectLocked === false) ? (ev.shiftKey ? true : false) : (ev.altKey ? false : true);
+    if (activeId === 'br') {
+      newW = Math.max(80, initial.w + dx);
+      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
+    } else if (activeId === 'bl') {
+      newW = Math.max(80, initial.w - dx);
+      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h + dy);
+    } else if (activeId === 'tr') {
+      newW = Math.max(80, initial.w + dx);
+      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
+    } else if (activeId === 'tl') {
+      newW = Math.max(80, initial.w - dx);
+      newH = lock ? Math.round(newW / aspect) : Math.max(40, initial.h - dy);
+    }
+    // Constrain to editor width
+    const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1200;
+    newW = Math.min(newW, Math.max(80, editorWidth - 20));
+    return { w: Math.round(newW), h: Math.round(newH), lock };
+  }
 
-  handle.addEventListener('pointerup', (ev) => {
-    if (pointerId !== ev.pointerId) return;
-    try { handle.releasePointerCapture(pointerId); } catch(e){}
-    pointerId = null;
+  function applySize(obj, ev) {
+    if (!obj) return;
+    // snapping: when Ctrl pressed, snap to common widths (25/50/75/100% or 320/640px)
+    const editorWidth = editor.root.getBoundingClientRect().width || editor.root.clientWidth || 1000;
+    let snapped = false;
+    if (ev && ev.ctrlKey) {
+      const presets = [
+        {label:'25%', px: Math.round(editorWidth * 0.25)},
+        {label:'50%', px: Math.round(editorWidth * 0.5)},
+        {label:'75%', px: Math.round(editorWidth * 0.75)},
+        {label:'100%', px: Math.round(editorWidth * 1.0)},
+        {label:'320px', px: 320},
+        {label:'640px', px: 640}
+      ];
+      for (const p of presets) {
+        if (Math.abs(obj.w - p.px) <= 10) {
+          obj.w = p.px;
+          // compute newH respecting aspect if locked
+          if (obj.lock) obj.h = Math.round(obj.w / aspect);
+          // show snap dot near center-right
+          snapDot.style.left = Math.min(figureEl.clientWidth - 12, (figureEl.clientWidth - 12) + 'px');
+          snapDot.style.top = Math.max(8, (figureEl.clientHeight / 2) - 4) + 'px';
+          figureEl.classList.add('snap');
+          snapped = true;
+          break;
+        }
+      }
+      if (!snapped) { figureEl.classList.remove('snap'); }
+    } else { figureEl.classList.remove('snap'); }
+
+    figureEl.style.width = obj.w + 'px';
+    if (obj.h && obj.h !== 'auto') figureEl.style.height = obj.h + 'px';
+    else figureEl.style.removeProperty('height');
+
+    updateOverlay(obj.w, obj.h);
+    updateCornerPositions();
+    showGuides();
+  }
+
+  function moveCorner(ev) {
+    if (!resizing) return;
+    const obj = computeNewSize(ev);
+    applySize(obj, ev);
+  }
+
+  function endCorner(ev) {
+    if (!resizing) return;
+    resizing = false;
+    activeId = null;
     figureEl.classList.remove('resizing');
-    document.body.style.userSelect = '';
+    overlay.style.opacity = 0;
+    figureEl.classList.remove('snap');
+    // persist to blot
     try {
       const blot = Quill.find(figureEl);
       if (blot) {
         const idx = editor.getIndex(blot);
         const val = FigureBlot.value(figureEl);
         val.width = figureEl.style.width || '';
+        val.height = figureEl.style.height || '';
         editor.deleteText(idx, 1, Quill.sources.SILENT);
         editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
       }
-    } catch (err) {}
+    } catch (err) { console.warn('persist size failed', err); }
+    updateCornerPositions();
+  }
+
+  // wire pointer events on corner buttons
+  Object.entries(corners).forEach(([k, btn]) => {
+    btn.addEventListener('pointerdown', (ev) => beginCorner(ev, k));
+    // accessibility: enter/space to open size modal for keyboard users
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sizeModal.openForFigure(figureEl); }
+    });
   });
 
-  handle.addEventListener('pointercancel', () => {
-    pointerId = null;
-    figureEl.classList.remove('resizing');
-    document.body.style.userSelect = '';
-  });
+  // capture pointer move/up globally (handles pointercapture via element but safe to listen global too)
+  const onPointerMove = (e) => moveCorner(e);
+  const onPointerUp = (e) => endCorner(e);
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('pointercancel', onPointerUp);
+
+  // keyboard nudging for selected figure (left/right/up/down)
+  const onKeyNudge = (e) => {
+    const isSelected = figureEl.classList && figureEl.classList.contains('selected');
+    if (!isSelected) return;
+    const step = e.shiftKey ? 10 : 1;
+    let w = parseInt((figureEl.style.width || '').replace('px','')) || Math.round(figureEl.getBoundingClientRect().width);
+    let h = parseInt((figureEl.style.height || '').replace('px','')) || Math.round(figureEl.querySelector('img,video')?.offsetHeight || w / aspect);
+    let changed = false;
+    if (e.key === 'ArrowLeft') { w = Math.max(40, w - step); changed = true; }
+    else if (e.key === 'ArrowRight') { w = Math.min((editor.root.clientWidth || 1200), w + step); changed = true; }
+    else if (e.key === 'ArrowUp') { h = Math.max(20, h - step); changed = true; }
+    else if (e.key === 'ArrowDown') { h = Math.min(2000, h + step); changed = true; }
+    else if (e.key === '+' || e.key === '=') { w = w + (e.shiftKey ? 10 : 1); changed = true; }
+    else if (e.key === '-') { w = Math.max(40, w - (e.shiftKey ? 10 : 1)); changed = true; }
+
+    if (changed) {
+      e.preventDefault();
+      figureEl.style.width = Math.round(w) + 'px';
+      figureEl.style.height = Math.round(h) + 'px';
+      updateOverlay(w,h);
+      updateCornerPositions();
+      // persist quickly
+      try {
+        const blot = Quill.find(figureEl);
+        if (blot) {
+          const idx = editor.getIndex(blot);
+          const val = FigureBlot.value(figureEl);
+          val.width = figureEl.style.width || '';
+          val.height = figureEl.style.height || '';
+          editor.deleteText(idx, 1, Quill.sources.SILENT);
+          editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+        }
+      } catch (err) {}
+    }
+  };
+  document.addEventListener('keydown', onKeyNudge);
+
+  // double click to open size modal
+  figureEl.addEventListener('dblclick', (ev) => { ev.stopPropagation(); sizeModal.openForFigure(figureEl); });
+
+  // cleanup hook to remove listeners when figure removed
+  figureEl.__controlsCleanup = () => {
+    try { document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); document.removeEventListener('pointercancel', onPointerUp); document.removeEventListener('keydown', onKeyNudge); } catch(e){}
+    try { ro.disconnect(); } catch(e){}
+  };
+
+  // initial overlay values & corner position
+  const media = figureEl.querySelector('img,video');
+  updateOverlay(figureEl.getBoundingClientRect().width, media ? media.offsetHeight : 0);
+  requestAnimationFrame(updateCornerPositions);
 }
 
 /* Observe editor DOM for new figure nodes */
@@ -1137,14 +1783,11 @@ const mo = new MutationObserver((mutations) => {
   }
 });
 mo.observe(editor.root, { childList: true, subtree: true });
-
 attachObserversToAllFigures(editor.root);
-
 /* ---------------------------
    Small helpers
    --------------------------- */
 function debounce(fn, wait = 120) { let t; return function(...a){ clearTimeout(t); t = setTimeout(()=> fn.apply(this,a), wait); }; }
-
 </script>
 </body>
 </html>
