@@ -28,15 +28,6 @@
       box-sizing: border-box
     }
 
-    body {
-      background: var(--page-bg);
-      font-family: "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      padding: 42px 12px;
-      color: var(--text)
-    }
-
     .editor-card {
       width: 100%;
       max-width: 1080px;
@@ -601,105 +592,109 @@
 </head>
 
 <body>
-  <div class="editor-card">
-    <div id="root"></div>
-    <div id="char-count">Characters: 0</div>
-  </div>
-
-  <!-- Image modal -->
-  <div id="quill-image-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="quill-modal" role="document" aria-labelledby="quill-image-modal-title">
-      <h3 id="quill-image-modal-title">Insert image (optional caption)</h3>
-      <div class="row">
-        <label>Image URL<input id="quill-image-url" type="text" placeholder="https://example.com/image.jpg" /></label>
-      </div>
-      <div class="row">
-        <label>Or upload file<input id="quill-image-file" type="file" accept="image/*" /></label>
-      </div>
-      <div class="row">
-        <label>Caption (optional)<input id="quill-image-caption" type="text"
-            placeholder="Write a caption (optional)" /></label>
-      </div>
-      <div class="row">
-        <div class="preview" id="quill-image-preview">Preview</div>
-      </div>
-      <div class="actions">
-        <button id="quill-image-cancel" class="btn ghost" type="button">Cancel</button>
-        <button id="quill-image-insert" class="btn primary" type="button">Insert</button>
-      </div>
+  <div>
+    <div class="editor-card">
+      <div id="root"></div>
+      <div id="char-count">Characters: 0</div>
     </div>
-  </div>
 
-  <!-- Video modal -->
-  <div id="quill-video-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="quill-modal" role="document" aria-labelledby="quill-video-modal-title">
-      <h3 id="quill-video-modal-title">Insert video (optional caption)</h3>
-      <div class="row">
-        <label>Video URL<input id="quill-video-url" type="text" placeholder="https://example.com/video.mp4" /></label>
-      </div>
-      <div class="row">
-        <label>Or upload file<input id="quill-video-file" type="file" accept="video/*" /></label>
-      </div>
-      <div class="row">
-        <label>Caption (optional)<input id="quill-video-caption" type="text"
-            placeholder="Write a caption (optional)" /></label>
-      </div>
-      <div class="row">
-        <div class="preview" id="quill-video-preview">Preview</div>
-      </div>
-      <div class="actions">
-        <button id="quill-video-cancel" class="btn ghost" type="button">Cancel</button>
-        <button id="quill-video-insert" class="btn primary" type="button">Insert</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Link modal (for figure links) -->
-  <div id="quill-link-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="quill-modal" role="document" aria-labelledby="quill-link-modal-title">
-      <h3 id="quill-link-modal-title">Add / Edit link for image or video</h3>
-      <div class="row">
-        <label>URL<input id="quill-link-url" type="text" placeholder="https://example.com/page" /></label>
-      </div>
-      <div class="actions">
-        <button id="quill-link-cancel" class="btn ghost" type="button">Cancel</button>
-        <button id="quill-link-remove" class="btn" type="button">Remove link</button>
-        <button id="quill-link-insert" class="btn primary" type="button">Apply link</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Size modal (for figure width/height) -->
-  <div id="quill-size-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="quill-modal" role="document" aria-labelledby="quill-size-modal-title">
-      <h3 id="quill-size-modal-title">Set size for image / video</h3>
-      <div class="row">
-        <label>Width<input id="quill-size-width" type="text" placeholder="e.g. 320 or 50%" /></label>
-      </div>
-      <div class="row">
-        <label>Height<input id="quill-size-height" type="text" placeholder="e.g. 240 or auto" /></label>
-      </div>
-      <div class="row">
-        <label style="width:50%"><input id="quill-size-lock" type="checkbox" /> Lock aspect ratio</label>
-        <label style="width:50%"><small id="quill-size-intrinsic" style="color:var(--muted)"></small></label>
-      </div>
-      <div class="row">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn" data-preset="25%">25%</button>
-          <button class="btn" data-preset="50%">50%</button>
-          <button class="btn" data-preset="75%">75%</button>
-          <button class="btn" data-preset="100%">100%</button>
-          <button class="btn" data-preset="320px">320px</button>
-          <button class="btn" data-preset="640px">640px</button>
+    <!-- Image modal -->
+    <div id="quill-image-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="quill-modal" role="document" aria-labelledby="quill-image-modal-title">
+        <h3 id="quill-image-modal-title">Insert image (optional caption)</h3>
+        <div class="row">
+          <label>Image URL<input id="quill-image-url" type="text" placeholder="https://example.com/image.jpg" /></label>
+        </div>
+        <div class="row">
+          <label>Or upload file<input id="quill-image-file" type="file" accept="image/*" /></label>
+        </div>
+        <div class="row">
+          <label>Caption (optional)<input id="quill-image-caption" type="text"
+              placeholder="Write a caption (optional)" /></label>
+        </div>
+        <div class="row">
+          <div class="preview" id="quill-image-preview">Preview</div>
+        </div>
+        <div class="actions">
+          <button id="quill-image-cancel" class="btn ghost" type="button">Cancel</button>
+          <button id="quill-image-insert" class="btn primary" type="button">Insert</button>
         </div>
       </div>
-      <div class="actions">
-        <button id="quill-size-cancel" class="btn ghost" type="button">Cancel</button>
-        <button id="quill-size-apply" class="btn primary" type="button">Apply</button>
+    </div>
+
+    <!-- Video modal -->
+    <div id="quill-video-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="quill-modal" role="document" aria-labelledby="quill-video-modal-title">
+        <h3 id="quill-video-modal-title">Insert video (optional caption)</h3>
+        <div class="row">
+          <label>Video URL<input id="quill-video-url" type="text" placeholder="https://example.com/video.mp4" /></label>
+        </div>
+        <div class="row">
+          <label>Or upload file<input id="quill-video-file" type="file" accept="video/*" /></label>
+        </div>
+        <div class="row">
+          <label>Caption (optional)<input id="quill-video-caption" type="text"
+              placeholder="Write a caption (optional)" /></label>
+        </div>
+        <div class="row">
+          <div class="preview" id="quill-video-preview">Preview</div>
+        </div>
+        <div class="actions">
+          <button id="quill-video-cancel" class="btn ghost" type="button">Cancel</button>
+          <button id="quill-video-insert" class="btn primary" type="button">Insert</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link modal (for figure links) -->
+    <div id="quill-link-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="quill-modal" role="document" aria-labelledby="quill-link-modal-title">
+        <h3 id="quill-link-modal-title">Add / Edit link for image or video</h3>
+        <div class="row">
+          <label>URL<input id="quill-link-url" type="text" placeholder="https://example.com/page" /></label>
+        </div>
+        <div class="actions">
+          <button id="quill-link-cancel" class="btn ghost" type="button">Cancel</button>
+          <button id="quill-link-remove" class="btn" type="button">Remove link</button>
+          <button id="quill-link-insert" class="btn primary" type="button">Apply link</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Size modal (for figure width/height) -->
+    <div id="quill-size-modal-overlay" class="quill-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="quill-modal" role="document" aria-labelledby="quill-size-modal-title">
+        <h3 id="quill-size-modal-title">Set size for image / video</h3>
+        <div class="row">
+          <label>Width<input id="quill-size-width" type="text" placeholder="e.g. 320 or 50%" /></label>
+        </div>
+        <div class="row">
+          <label>Height<input id="quill-size-height" type="text" placeholder="e.g. 240 or auto" /></label>
+        </div>
+        <div class="row">
+          <label style="width:50%"><input id="quill-size-lock" type="checkbox" /> Lock aspect ratio</label>
+          <label style="width:50%"><small id="quill-size-intrinsic" style="color:var(--muted)"></small></label>
+        </div>
+        <div class="row">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn" data-preset="25%">25%</button>
+            <button class="btn" data-preset="50%">50%</button>
+            <button class="btn" data-preset="75%">75%</button>
+            <button class="btn" data-preset="100%">100%</button>
+            <button class="btn" data-preset="320px">320px</button>
+            <button class="btn" data-preset="640px">640px</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="quill-size-cancel" class="btn ghost" type="button">Cancel</button>
+          <button id="quill-size-apply" class="btn primary" type="button">Apply</button>
+        </div>
       </div>
     </div>
   </div>
-
+  <div>
+    <button type="button" id="get-data">submit</button>
+  </div>
   <!-- external libraries first, app script last -->
   <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
@@ -1135,6 +1130,316 @@
 
     attachObserversToAllFigures();
     editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
+
+
+    // -------------------------
+    // Mouse drag-to-move for figures (images/videos)
+    // -------------------------
+   // -------------------------
+// Improved mouse drag-to-move for figures (no DOM mutation of editor.root)
+// -------------------------
+(() => {
+  const MOVE_STATE = {
+    active: false,
+    figureEl: null,
+    originalIndex: null,
+    val: null,
+    offsetX: 0,
+    offsetY: 0,
+    ghost: null,
+    overlayMarker: null,
+    lastClientX: 0,
+    lastClientY: 0
+  };
+
+  function createGhost(node) {
+    const ghost = node.cloneNode(true);
+    ghost.style.position = 'fixed';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.margin = '0';
+    ghost.style.zIndex = 99999;
+    ghost.style.opacity = '0.75';
+    ghost.style.width = Math.min(420, node.getBoundingClientRect().width) + 'px';
+    ghost.style.transform = 'translate(-50%,-50%) scale(0.98)';
+    document.body.appendChild(ghost);
+    return ghost;
+  }
+
+  function ensureOverlayMarker() {
+    if (MOVE_STATE.overlayMarker && MOVE_STATE.overlayMarker.parentNode) return MOVE_STATE.overlayMarker;
+    const m = document.createElement('div');
+    m.className = 'insert-marker';
+    // style as an overlay line
+    m.style.position = 'fixed';
+    m.style.height = '4px';
+    m.style.background = 'rgba(0,123,255,0.85)';
+    m.style.width = '0px';
+    m.style.left = '0px';
+    m.style.top = '0px';
+    m.style.borderRadius = '2px';
+    m.style.pointerEvents = 'none';
+    m.style.zIndex = 99998;
+    m.style.display = 'none';
+    document.body.appendChild(m);
+    MOVE_STATE.overlayMarker = m;
+    return m;
+  }
+
+  // Given a client point, compute a drop index WITHOUT inserting nodes into editor
+  function computeDropIndexFromPoint(clientX, clientY) {
+    const editorRect = editor.root.getBoundingClientRect();
+    // If point outside editor vertical bounds, clamp to start/end
+    if (clientY < editorRect.top) {
+      // insert at start of document
+      return 0;
+    }
+    if (clientY > editorRect.bottom) {
+      return editor.getLength();
+    }
+
+    // Try figure under cursor
+    let el = document.elementFromPoint(clientX, clientY);
+    if (!el) return editor.getLength();
+    const fig = el.closest && el.closest('figure.custom-figure');
+    if (fig) {
+      // decide before/after based on vertical midpoint
+      try {
+        const targetBlot = Quill.find(fig);
+        const rect = fig.getBoundingClientRect();
+        const mid = rect.top + rect.height/2;
+        const baseIndex = targetBlot ? editor.getIndex(targetBlot) : null;
+        if (baseIndex === null) return editor.getLength();
+        if (clientY < mid) return baseIndex;        // before figure
+        return baseIndex + 1;                       // after figure
+      } catch (e) { /* fallback below */ }
+    }
+
+    // Fall back to caret range from point if available
+    let range = null;
+    if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(clientX, clientY);
+    } else if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(clientX, clientY);
+      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+    }
+
+    if (range) {
+      try {
+        // find the nearest blot for the range start
+        const node = range.startContainer;
+        const blot = Quill.find(node, true);
+        if (blot) {
+          const idx = editor.getIndex(blot);
+          // if the blot is a block embed (figure) we probably want idx + (range.startOffset?0:1)
+          // for text nodes, add the offset for finer placement
+          if (node.nodeType === 3) { // text node
+            return idx + (range.startOffset || 0);
+          }
+          // not text node: return blot index
+          return idx;
+        }
+      } catch (err) { /* ignore and fall through */ }
+    }
+
+    // As a final fallback: iterate editor root block children and choose insertion by midpoint
+    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+    for (const ch of children) {
+      const r = ch.getBoundingClientRect();
+      const mid = r.top + r.height/2;
+      try {
+        const blot = Quill.find(ch);
+        const idx = blot ? editor.getIndex(blot) : null;
+        if (idx === null) continue;
+        if (clientY < mid) return idx;
+        // otherwise continue to next
+      } catch (e) { continue; }
+    }
+
+    // fallback to end
+    return editor.getLength();
+  }
+
+  // Position overlay marker visually at the computed drop point (client coords)
+  function showOverlayMarkerAt(clientX, clientY) {
+    const marker = ensureOverlayMarker();
+    const editorRect = editor.root.getBoundingClientRect();
+
+    // compute insertion anchor for visuals: find the nearest child and place line at its top
+    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+    let placed = false;
+    for (const ch of children) {
+      const r = ch.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      if (clientY < mid) {
+        // align marker with top of this child
+        marker.style.left = editorRect.left + 'px';
+        marker.style.width = editorRect.width + 'px';
+        marker.style.top = (r.top - 2) + 'px'; // slightly above the element
+        marker.style.display = 'block';
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      // put at bottom of editor
+      marker.style.left = editorRect.left + 'px';
+      marker.style.width = editorRect.width + 'px';
+      marker.style.top = (editorRect.bottom - 2) + 'px';
+      marker.style.display = 'block';
+    }
+  }
+
+  function hideOverlayMarker() {
+    if (MOVE_STATE.overlayMarker) MOVE_STATE.overlayMarker.style.display = 'none';
+  }
+
+  // Begin move - called on mousedown on a figure
+  function beginMove(figureEl, ev) {
+    // guard: don't start on caption or controls
+    if (ev.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
+
+    MOVE_STATE.active = true;
+    MOVE_STATE.figureEl = figureEl;
+    MOVE_STATE.val = FigureBlot.value(figureEl);
+
+    try {
+      const blot = Quill.find(figureEl);
+      MOVE_STATE.originalIndex = blot ? editor.getIndex(blot) : null;
+    } catch (e) {
+      MOVE_STATE.originalIndex = null;
+    }
+
+    const rect = figureEl.getBoundingClientRect();
+    MOVE_STATE.offsetX = ev.clientX - rect.left;
+    MOVE_STATE.offsetY = ev.clientY - rect.top;
+
+    MOVE_STATE.ghost = createGhost(figureEl);
+    MOVE_STATE.ghost.style.left = ev.clientX + 'px';
+    MOVE_STATE.ghost.style.top = ev.clientY + 'px';
+
+    // hide original visually to indicate move (but keep in DOM)
+    figureEl.style.visibility = 'hidden';
+    figureEl.classList.add('dragging');
+
+    try { editor.disable(); } catch (e) {}
+
+    // store last point
+    MOVE_STATE.lastClientX = ev.clientX;
+    MOVE_STATE.lastClientY = ev.clientY;
+
+    // show initial overlay marker
+    showOverlayMarkerAt(ev.clientX, ev.clientY);
+  }
+
+  function onMoveMouse(e) {
+    if (!MOVE_STATE.active) return;
+    e.preventDefault();
+    MOVE_STATE.lastClientX = e.clientX;
+    MOVE_STATE.lastClientY = e.clientY;
+
+    if (MOVE_STATE.ghost) {
+      MOVE_STATE.ghost.style.left = e.clientX + 'px';
+      MOVE_STATE.ghost.style.top = e.clientY + 'px';
+    }
+
+    // update overlay marker visually (no DOM mutations inside editor.root)
+    const editorRect = editor.root.getBoundingClientRect();
+    if (e.clientY < editorRect.top) {
+      showOverlayMarkerAt(e.clientX, editorRect.top + 2);
+    } else if (e.clientY > editorRect.bottom) {
+      showOverlayMarkerAt(e.clientX, editorRect.bottom - 2);
+    } else {
+      showOverlayMarkerAt(e.clientX, e.clientY);
+    }
+  }
+
+  function endMove(e) {
+    if (!MOVE_STATE.active) return;
+    e && e.preventDefault();
+
+    // compute drop index from last stored client coordinates
+    const dropIndex = computeDropIndexFromPoint(MOVE_STATE.lastClientX, MOVE_STATE.lastClientY);
+
+    // cleanup visuals
+    if (MOVE_STATE.ghost) { try { MOVE_STATE.ghost.remove(); } catch (err) {} MOVE_STATE.ghost = null; }
+    hideOverlayMarker();
+
+    // reveal original element back (we will delete it after successful move)
+    if (MOVE_STATE.figureEl) {
+      MOVE_STATE.figureEl.style.visibility = '';
+      MOVE_STATE.figureEl.classList.remove('dragging');
+    }
+
+    try { editor.enable(); } catch (e) {}
+
+    // no valid drop index? abort
+    if (typeof dropIndex !== 'number') {
+      MOVE_STATE.active = false;
+      MOVE_STATE.figureEl = null;
+      MOVE_STATE.val = null;
+      MOVE_STATE.originalIndex = null;
+      return;
+    }
+
+    // if original index exists and the drop is effectively the same location => no-op
+    if (MOVE_STATE.originalIndex !== null && (MOVE_STATE.originalIndex === dropIndex || MOVE_STATE.originalIndex + 1 === dropIndex)) {
+      MOVE_STATE.active = false;
+      MOVE_STATE.figureEl = null;
+      MOVE_STATE.val = null;
+      MOVE_STATE.originalIndex = null;
+      return;
+    }
+
+    // Perform the move safely: delete original (if we have index), adjust dropIndex, insert new embed
+    try {
+      let finalIndex = dropIndex;
+      if (MOVE_STATE.originalIndex !== null) {
+        // if original is before final insertion point, deleting it will shift indexes left
+        if (MOVE_STATE.originalIndex < finalIndex) finalIndex = finalIndex - 1;
+        // delete only the single blot (figure). This shouldn't remove adjacent text.
+        editor.deleteText(MOVE_STATE.originalIndex, 1, Quill.sources.USER);
+      }
+
+      // Insert the figure at the computed finalIndex
+      if (MOVE_STATE.val) {
+        editor.insertEmbed(finalIndex, 'figure', MOVE_STATE.val, Quill.sources.USER);
+        editor.insertText(finalIndex + 1, '\n', Quill.sources.SILENT);
+        editor.setSelection(finalIndex + 2, 0, Quill.sources.SILENT);
+        setTimeout(() => attachObserversToAllFigures(), 60);
+      }
+    } catch (err) {
+      console.warn('move failed', err);
+    }
+
+    // final cleanup
+    MOVE_STATE.active = false;
+    MOVE_STATE.figureEl = null;
+    MOVE_STATE.val = null;
+    MOVE_STATE.originalIndex = null;
+  }
+
+  // Attach mouse handlers
+  document.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const fig = e.target.closest && e.target.closest('figure.custom-figure');
+    if (!fig) return;
+    // don't start move when clicking controls/caption/handles
+    if (e.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
+    e.preventDefault();
+    beginMove(fig, e);
+  });
+
+  document.addEventListener('mousemove', onMoveMouse);
+  document.addEventListener('mouseup', endMove);
+
+  // cleanup on unload
+  window.addEventListener('beforeunload', () => {
+    if (MOVE_STATE.ghost) try { MOVE_STATE.ghost.remove(); } catch (e) { }
+    if (MOVE_STATE.overlayMarker) try { MOVE_STATE.overlayMarker.remove(); } catch (e) { }
+  });
+})();
+// closer
+
     /* ---------------------------
        Modal UI logic (insert FigureBlot)
        --------------------------- */
@@ -1849,17 +2154,17 @@
           const h = media.offsetHeight;
 
           // left/top, right/top, right/bottom, left/bottom
-          corners.tl.style.left = (offsetLeft-6) + 'px';
-          corners.tl.style.top = (offsetTop-4) + 'px';
+          corners.tl.style.left = (offsetLeft - 6) + 'px';
+          corners.tl.style.top = (offsetTop - 4) + 'px';
 
           corners.tr.style.left = ((offsetLeft + w - corners.tr.offsetWidth) + 6) + 'px';
           corners.tr.style.top = (offsetTop - 4) + 'px';
 
-          corners.br.style.left = ((offsetLeft + w - corners.br.offsetWidth)+7) + 'px';
-          corners.br.style.top = ((offsetTop + h - corners.br.offsetHeight)+4) + 'px';
+          corners.br.style.left = ((offsetLeft + w - corners.br.offsetWidth) + 7) + 'px';
+          corners.br.style.top = ((offsetTop + h - corners.br.offsetHeight) + 4) + 'px';
 
-          corners.bl.style.left = (offsetLeft-6) + 'px';
-          corners.bl.style.top = (offsetTop + h - corners.bl.offsetHeight+4) + 'px';
+          corners.bl.style.left = (offsetLeft - 6) + 'px';
+          corners.bl.style.top = (offsetTop + h - corners.bl.offsetHeight + 4) + 'px';
         } catch (e) {
           console.error(e);
         }
@@ -2049,8 +2354,6 @@
 
       // wire pointer events on corner buttons
       Object.entries(corners).forEach(([k, btn]) => {
-        console.log("heioo");
-
         btn.addEventListener('pointerdown', (ev) => beginCorner(ev, k));
         // accessibility: enter/space to open size modal for keyboard users
         btn.addEventListener('keydown', (e) => {
@@ -2138,7 +2441,36 @@
        Small helpers
        --------------------------- */
     function debounce(fn, wait = 120) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), wait); }; }
+    const editorEl = document.querySelector('.ql-editor');
+    let selectedFigure = null; // currently selected figure
 
+    // Click handler
+    editorEl.addEventListener('click', (e) => {
+      const figureToolbar = document.querySelector('.figure-toolbar');
+      // User clicked on media, do nothing here
+      if (figureToolbar) {
+        figureToolbar.style.display = 'none';
+      }
+    });
+    const editorContainer = document.getElementById("editor");
+
+    // Create tags after editor (only once)
+    const preciousContent = document.createElement("pre");
+    preciousContent.id = "preciousContent";
+
+    const justTextContent = document.createElement("pre");
+    justTextContent.id = "justTextContent";
+
+    const justHtmlContent = document.createElement("pre");
+    justHtmlContent.id = "justHtmlContent";
+
+    document.getElementById("get-data").addEventListener("click", () => {
+      var delta = editor.getContents();
+      var text = editor.getText();
+      var justHtml = editor.root.innerHTML;
+      const setData = editor.clipboard.convert({html:justHtml})
+      editor.setContents(setData, 'silent')
+    });
   </script>
 </body>
 </html>
