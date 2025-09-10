@@ -127,8 +127,7 @@
       color: var(--text);
       background: #fff;
       border-radius: 0 0 14px 14px;
-      position: relative;
-      overflow:visible;
+      position: relative
     }
 
     .ql-editor.ql-blank::before {
@@ -599,6 +598,10 @@
       margin-right: 0;
       text-align: right;
     }
+    /* insertion marker caret */
+    .insert-marker { transition: opacity .08s ease; }
+    .insert-marker .insert-marker-caret { transition: left .05s linear; }
+    .figure-align-badge { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
   </style>
 </head>
 
@@ -797,95 +800,128 @@
        --------------------------- */
     function urlLooksLikeVideo(url) { return /\.(mp4|webm|ogg|mov|m4v|3gp)(\?.*)?$/i.test(url); }
 
-    class FigureBlot extends BlockEmbed {
-      static blotName = 'figure';
-      static tagName = 'figure';
+   /* ---------------------------
+   FigureBlot (image/video + editable caption + link + size)
+   Updated: store & render alignPercent on the FIGURE (0..1)
+   --------------------------- */
+class FigureBlot extends BlockEmbed {
+  static blotName = 'figure';
+  static tagName = 'figure';
 
-      static create(value = {}) {
-        const node = super.create();
-        node.classList.add('custom-figure');
-        node.setAttribute('contenteditable', 'false');
+  static create(value = {}) {
+    const node = super.create();
+    node.classList.add('custom-figure');
+    node.setAttribute('contenteditable', 'false');
 
-        const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
-        let mediaEl;
-        if (type === 'video') {
-          const video = document.createElement('video');
-          video.controls = true;
-          video.playsInline = true;
-          const source = document.createElement('source');
-          source.src = value.url || '';
-          video.appendChild(source);
-          mediaEl = video;
-        } else {
-          const img = document.createElement('img');
-          img.src = value.url || '';
-          img.alt = value.caption || '';
-          img.setAttribute('draggable', 'false');
-          mediaEl = img;
-        }
+    const type = value.type || (urlLooksLikeVideo(value.url) ? 'video' : 'image');
+    let mediaEl;
+    if (type === 'video') {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      const source = document.createElement('source');
+      source.src = value.url || '';
+      video.appendChild(source);
+      mediaEl = video;
+    } else {
+      const img = document.createElement('img');
+      img.src = value.url || '';
+      img.alt = value.caption || '';
+      img.setAttribute('draggable', 'false');
+      mediaEl = img;
+    }
 
-        // if a link is provided, wrap media in anchor
-        if (value.link && value.link.href) {
-          const a = document.createElement('a');
-          a.href = value.link.href;
-          if (value.link.target) a.target = value.link.target;
-          if (value.link.rel) a.rel = value.link.rel;
-          a.setAttribute('data-figure-link', '1');
-          a.appendChild(mediaEl);
-          node.appendChild(a);
-        } else {
-          node.appendChild(mediaEl);
-        }
+    // if a link is provided, wrap media in anchor
+    if (value.link && value.link.href) {
+      const a = document.createElement('a');
+      a.href = value.link.href;
+      if (value.link.target) a.target = value.link.target;
+      if (value.link.rel) a.rel = value.link.rel;
+      a.setAttribute('data-figure-link', '1');
+      a.appendChild(mediaEl);
+      node.appendChild(a);
+    } else {
+      node.appendChild(mediaEl);
+    }
 
-        const caption = document.createElement('figcaption');
-        caption.setAttribute('contenteditable', 'true');
-        caption.className = 'ql-caption';
-        caption.innerText = value.caption || '';
-        node.appendChild(caption);
+    const caption = document.createElement('figcaption');
+    caption.setAttribute('contenteditable', 'true');
+    caption.className = 'ql-caption';
+    caption.innerText = value.caption || '';
+    node.appendChild(caption);
 
-        // apply size if provided
-        if (value.width) node.style.width = value.width;
-        if (value.height) node.style.height = value.height;
+    // apply size if provided
+    if (value.width) node.style.width = value.width;
+    if (value.height) node.style.height = value.height;
 
-        if (value.align) {
-          node.classList.remove('align-left', 'align-center', 'align-right');
-          node.classList.add('align-' + value.align);
-        }
+    // Apply alignment:
+    // Prefer numeric alignPercent (0..1) applied to the FIGURE (not inner media).
+    // This works even if media is width:100%.
+    if (typeof value.alignPercent === 'number' && !Number.isNaN(value.alignPercent)) {
+      const pct = Math.max(0, Math.min(1, value.alignPercent)) * 100;
+      // remove legacy align classes
+      node.classList.remove('align-left', 'align-center', 'align-right');
+      // set inline styles so positioning survives subsequent DOM wrapping
+      node.style.display = 'block';
+      node.style.marginLeft = pct + '%';
+      node.style.transform = 'translateX(-50%)';
+      node.style.boxSizing = 'border-box';
+    } else if (value.align) {
+      // legacy string-based alignment (keeps previous behaviour)
+      node.classList.remove('align-left', 'align-center', 'align-right');
+      node.classList.add('align-' + value.align);
+    }
 
-        return node;
-      }
+    return node;
+  }
 
-      static value(node) {
-        const media = node.querySelector('img,video');
-        const caption = node.querySelector('figcaption');
-        let url = '';
-        let type = 'image';
-        if (media) {
-          if (media.tagName.toLowerCase() === 'video') {
-            const src = media.querySelector('source')?.getAttribute('src') || media.getAttribute('src') || '';
-            url = src;
-            type = 'video';
-          } else {
-            url = media.getAttribute('src') || '';
-            type = 'image';
-          }
-        }
-
-        // link extraction (if media is wrapped in anchor)
-        let link = null;
-        const anchor = node.querySelector('a[data-figure-link]') || (media && media.closest && media.closest('a'));
-        if (anchor) {
-          link = { href: anchor.getAttribute('href') || '', target: anchor.getAttribute('target') || '', rel: anchor.getAttribute('rel') || '' };
-        }
-
-        const width = node.style.width || '';
-        const height = node.style.height || '';
-        const align = (node.classList.contains('align-left') && 'left') ||
-          (node.classList.contains('align-right') && 'right') || 'center';
-        return { url, type, caption: (caption ? caption.innerText : ''), width, height, align, link };
+  static value(node) {
+    const media = node.querySelector('img,video');
+    const caption = node.querySelector('figcaption');
+    let url = '';
+    let type = 'image';
+    if (media) {
+      if (media.tagName.toLowerCase() === 'video') {
+        const src = media.querySelector('source')?.getAttribute('src') || media.getAttribute('src') || '';
+        url = src;
+        type = 'video';
+      } else {
+        url = media.getAttribute('src') || '';
+        type = 'image';
       }
     }
-    Quill.register(FigureBlot);
+
+    // link extraction (if media is wrapped in anchor)
+    let link = null;
+    const anchor = node.querySelector('a[data-figure-link]') || (media && media.closest && media.closest('a'));
+    if (anchor) {
+      link = { href: anchor.getAttribute('href') || '', target: anchor.getAttribute('target') || '', rel: anchor.getAttribute('rel') || '' };
+    }
+
+    const width = node.style.width || '';
+    const height = node.style.height || '';
+
+    // legacy align string
+    const align = (node.classList.contains('align-left') && 'left') ||
+      (node.classList.contains('align-right') && 'right') || 'center';
+
+    // read alignPercent from the FIGURE's inline styles (margin-left + translateX(-50%))
+    let alignPercent = null;
+    try {
+      const ml = node.style.marginLeft || window.getComputedStyle(node).marginLeft || '';
+      const tr = node.style.transform || window.getComputedStyle(node).transform || '';
+      if (ml && ml.endsWith('%') && tr && tr.indexOf('translateX(-50%') !== -1) {
+        const pct = parseFloat(ml.replace('%', '')) || 0;
+        alignPercent = Math.max(0, Math.min(1, pct / 100));
+      }
+    } catch (e) { /* ignore parse errors */ }
+
+    return { url, type, caption: (caption ? caption.innerText : ''), width, height, align, alignPercent, link };
+  }
+}
+Quill.register(FigureBlot);
+
+
 
     /* ---------------------------
        Initialize Quill editor (no imageResize/videoResize modules)
@@ -1142,12 +1178,9 @@
     attachObserversToAllFigures();
     editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
 
-
     // -------------------------
-    // Mouse drag-to-move for figures (images/videos)
-    // -------------------------
-   // -------------------------
-// Improved mouse drag-to-move for figures (no DOM mutation of editor.root)
+// Drag-to-move for figures WITH horizontal alignment preview & apply-on-drop
+// (Replace previous drag-to-move IIFE with this block)
 // -------------------------
 (() => {
   const MOVE_STATE = {
@@ -1158,9 +1191,12 @@
     offsetX: 0,
     offsetY: 0,
     ghost: null,
+    ghostBadge: null,
     overlayMarker: null,
+    overlayCaret: null,
     lastClientX: 0,
-    lastClientY: 0
+    lastClientY: 0,
+    previewAlign: null // numeric 0..1 (center=0.5) OR null
   };
 
   function createGhost(node) {
@@ -1169,10 +1205,30 @@
     ghost.style.pointerEvents = 'none';
     ghost.style.margin = '0';
     ghost.style.zIndex = 99999;
-    ghost.style.opacity = '0.75';
+    ghost.style.opacity = '0.86';
     ghost.style.width = Math.min(420, node.getBoundingClientRect().width) + 'px';
     ghost.style.transform = 'translate(-50%,-50%) scale(0.98)';
+    // small badge to indicate previewed alignment (percent)
+    const badge = document.createElement('div');
+    badge.className = 'figure-align-badge';
+    badge.style.position = 'absolute';
+    badge.style.top = '6px';
+    badge.style.right = '6px';
+    badge.style.padding = '4px 6px';
+    badge.style.borderRadius = '6px';
+    badge.style.fontSize = '12px';
+    badge.style.fontWeight = '700';
+    badge.style.background = 'rgba(0,0,0,0.6)';
+    badge.style.color = '#fff';
+    badge.style.pointerEvents = 'none';
+    badge.style.zIndex = 999999;
+    badge.textContent = '';
+    ghost.style.boxSizing = 'border-box';
+    ghost.style.position = 'fixed';
+    ghost.style.display = 'block';
+    ghost.appendChild(badge);
     document.body.appendChild(ghost);
+    MOVE_STATE.ghostBadge = badge;
     return ghost;
   }
 
@@ -1180,123 +1236,214 @@
     if (MOVE_STATE.overlayMarker && MOVE_STATE.overlayMarker.parentNode) return MOVE_STATE.overlayMarker;
     const m = document.createElement('div');
     m.className = 'insert-marker';
-    // style as an overlay line
     m.style.position = 'fixed';
     m.style.height = '4px';
     m.style.background = 'rgba(0,123,255,0.85)';
-    m.style.width = '0px';
     m.style.left = '0px';
     m.style.top = '0px';
     m.style.borderRadius = '2px';
     m.style.pointerEvents = 'none';
     m.style.zIndex = 99998;
     m.style.display = 'none';
+    // caret indicator for exact x position
+    const caret = document.createElement('div');
+    caret.className = 'insert-marker-caret';
+    caret.style.position = 'absolute';
+    caret.style.width = '2px';
+    caret.style.height = '18px';
+    caret.style.top = '-7px';
+    caret.style.background = 'rgba(10,10,10,0.9)';
+    caret.style.borderRadius = '1px';
+    caret.style.pointerEvents = 'none';
+    m.appendChild(caret);
     document.body.appendChild(m);
     MOVE_STATE.overlayMarker = m;
+    MOVE_STATE.overlayCaret = caret;
     return m;
   }
 
-  // Given a client point, compute a drop index WITHOUT inserting nodes into editor
   function computeDropIndexFromPoint(clientX, clientY) {
-    const editorRect = editor.root.getBoundingClientRect();
-    // If point outside editor vertical bounds, clamp to start/end
-    if (clientY < editorRect.top) {
-      // insert at start of document
-      return 0;
-    }
-    if (clientY > editorRect.bottom) {
+      const editorRect = editor.root.getBoundingClientRect();
+      // outside: top -> start, bottom -> end
+      if (clientY < editorRect.top) return 0;
+      if (clientY > editorRect.bottom) return editor.getLength();
+
+      // element under pointer (quick figure-before/after check)
+      let el = document.elementFromPoint(clientX, clientY);
+      if (el) {
+        const fig = el.closest && el.closest('figure.custom-figure');
+        if (fig) {
+          try {
+            const targetBlot = Quill.find(fig);
+            const rect = fig.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            const baseIndex = targetBlot ? editor.getIndex(targetBlot) : null;
+            if (baseIndex !== null) return clientY < mid ? baseIndex : baseIndex + 1;
+          } catch (e) { /* continue to more robust calculation */ }
+        }
+      }
+
+      // Try precise caret location first (best for dropping inside text)
+      let range = null;
+      if (document.caretRangeFromPoint) {
+        try { range = document.caretRangeFromPoint(clientX, clientY); } catch (e) { range = null; }
+      } else if (document.caretPositionFromPoint) {
+        try {
+          const p = document.caretPositionFromPoint(clientX, clientY);
+          if (p) { range = document.createRange(); range.setStart(p.offsetNode, p.offset); }
+        } catch (e) { range = null; }
+      }
+
+      if (range) {
+        try {
+          const forbidden = (node) => node && node.closest && node.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle');
+          if (!forbidden(range.startContainer)) {
+            const blot = Quill.find(range.startContainer, true);
+            if (blot) {
+              const baseIdx = editor.getIndex(blot);
+              if (range.startContainer.nodeType === Node.TEXT_NODE) {
+                const offset = range.startOffset || 0;
+                const idx = baseIdx + offset;
+                return Math.max(0, Math.min(idx, editor.getLength()));
+              }
+              return Math.max(0, Math.min(baseIdx, editor.getLength()));
+            }
+          }
+        } catch (err) { /* fall through to block scan fallback */ }
+      }
+
+      // Robust fallback: choose the top-level editor child whose vertical center is nearest to the pointer Y.
+      // Then, insert before or after that block depending on whether pointer is above/below its midpoint.
+      try {
+        const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+        if (!children.length) return editor.getLength();
+
+        let closest = null;
+        let closestDist = Infinity;
+        for (const ch of children) {
+          const r = ch.getBoundingClientRect();
+          const centerY = r.top + (r.height / 2);
+          const dist = Math.abs(centerY - clientY);
+          if (dist < closestDist) { closestDist = dist; closest = { node: ch, rect: r, centerY }; }
+        }
+
+        if (closest) {
+          try {
+            const blot = Quill.find(closest.node);
+            const idx = blot ? editor.getIndex(blot) : null;
+            if (idx !== null) {
+              // if pointer is above center -> before block, else after block
+              return clientY < closest.centerY ? Math.max(0, idx) : Math.min(editor.getLength(), idx + 1);
+            }
+          } catch (e) { /* fallthrough to end */ }
+        }
+      } catch (e) { /* ignore */ }
+
+      // default to end
       return editor.getLength();
     }
 
-    // Try figure under cursor
-    let el = document.elementFromPoint(clientX, clientY);
-    if (!el) return editor.getLength();
-    const fig = el.closest && el.closest('figure.custom-figure');
-    if (fig) {
-      // decide before/after based on vertical midpoint
-      try {
-        const targetBlot = Quill.find(fig);
-        const rect = fig.getBoundingClientRect();
-        const mid = rect.top + rect.height/2;
-        const baseIndex = targetBlot ? editor.getIndex(targetBlot) : null;
-        if (baseIndex === null) return editor.getLength();
-        if (clientY < mid) return baseIndex;        // before figure
-        return baseIndex + 1;                       // after figure
-      } catch (e) { /* fallback below */ }
-    }
-
-    // Fall back to caret range from point if available
-    let range = null;
-    if (document.caretRangeFromPoint) {
-      range = document.caretRangeFromPoint(clientX, clientY);
-    } else if (document.caretPositionFromPoint) {
-      const pos = document.caretPositionFromPoint(clientX, clientY);
-      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
-    }
-
-    if (range) {
-      try {
-        // find the nearest blot for the range start
-        const node = range.startContainer;
-        const blot = Quill.find(node, true);
-        if (blot) {
-          const idx = editor.getIndex(blot);
-          // if the blot is a block embed (figure) we probably want idx + (range.startOffset?0:1)
-          // for text nodes, add the offset for finer placement
-          if (node.nodeType === 3) { // text node
-            return idx + (range.startOffset || 0);
-          }
-          // not text node: return blot index
-          return idx;
-        }
-      } catch (err) { /* ignore and fall through */ }
-    }
-
-    // As a final fallback: iterate editor root block children and choose insertion by midpoint
-    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
-    for (const ch of children) {
-      const r = ch.getBoundingClientRect();
-      const mid = r.top + r.height/2;
-      try {
-        const blot = Quill.find(ch);
-        const idx = blot ? editor.getIndex(blot) : null;
-        if (idx === null) continue;
-        if (clientY < mid) return idx;
-        // otherwise continue to next
-      } catch (e) { continue; }
-    }
-
-    // fallback to end
-    return editor.getLength();
+  // returns a number 0..1 based on pointer position inside editor
+  function getAlignPercentFromClientX(clientX) {
+    const editorRect = editor.root.getBoundingClientRect();
+    if (!editorRect.width) return 0.5;
+    let rel = (clientX - editorRect.left) / editorRect.width;
+    if (rel < 0) rel = 0;
+    if (rel > 1) rel = 1;
+    return rel;
   }
 
-  // Position overlay marker visually at the computed drop point (client coords)
-  function showOverlayMarkerAt(clientX, clientY) {
+  function updateGhostBadge(alignOrPercent) {
+    if (!MOVE_STATE.ghostBadge) return;
+    if (typeof alignOrPercent === 'number') {
+      const pct = Math.round(alignOrPercent * 100);
+      MOVE_STATE.ghostBadge.textContent = `${pct}%`;
+      if (alignOrPercent < 0.33) MOVE_STATE.ghostBadge.style.background = 'rgba(90,120,200,0.95)';
+      else if (alignOrPercent > 0.66) MOVE_STATE.ghostBadge.style.background = 'rgba(90,200,120,0.95)';
+      else MOVE_STATE.ghostBadge.style.background = 'rgba(120,120,220,0.95)';
+    } else {
+      MOVE_STATE.ghostBadge.textContent = (alignOrPercent === 'left' ? 'L' : (alignOrPercent === 'right' ? 'R' : 'C'));
+      if (alignOrPercent === 'left') MOVE_STATE.ghostBadge.style.background = 'rgba(90,120,200,0.95)';
+      else if (alignOrPercent === 'right') MOVE_STATE.ghostBadge.style.background = 'rgba(90,200,120,0.95)';
+      else MOVE_STATE.ghostBadge.style.background = 'rgba(120,120,220,0.95)';
+    }
+  }
+
+  function showOverlayMarkerAt(clientX, clientY, previewAlign) {
     const marker = ensureOverlayMarker();
     const editorRect = editor.root.getBoundingClientRect();
+    marker.style.width = editorRect.width + 'px';
+    marker.style.left = editorRect.left + 'px';
 
-    // compute insertion anchor for visuals: find the nearest child and place line at its top
-    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
-    let placed = false;
-    for (const ch of children) {
-      const r = ch.getBoundingClientRect();
-      const mid = r.top + r.height / 2;
-      if (clientY < mid) {
-        // align marker with top of this child
-        marker.style.left = editorRect.left + 'px';
-        marker.style.width = editorRect.width + 'px';
-        marker.style.top = (r.top - 2) + 'px'; // slightly above the element
-        marker.style.display = 'block';
-        placed = true;
-        break;
-      }
+    // determine coarse region (for background tint) from numeric previewAlign
+    let region = 'center';
+    if (typeof previewAlign === 'number') {
+      if (previewAlign < 0.33) region = 'left';
+      else if (previewAlign > 0.66) region = 'right';
+      else region = 'center';
+    } else {
+      region = previewAlign || 'center';
     }
-    if (!placed) {
-      // put at bottom of editor
-      marker.style.left = editorRect.left + 'px';
-      marker.style.width = editorRect.width + 'px';
-      marker.style.top = (editorRect.bottom - 2) + 'px';
-      marker.style.display = 'block';
+
+    if (region === 'left') {
+      marker.style.background = 'linear-gradient(90deg, rgba(0,123,255,0.85) 25%, rgba(0,0,0,0.06) 25%)';
+    } else if (region === 'right') {
+      marker.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06) 75%, rgba(0,123,255,0.85) 75%)';
+    } else {
+      marker.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,123,255,0.85) 50%, rgba(0,0,0,0.06) 100%)';
+    }
+
+    // caret position for exact alignment
+    if (typeof previewAlign === 'number') {
+      const caretX = Math.round(editorRect.left + previewAlign * editorRect.width);
+      MOVE_STATE.overlayCaret.style.left = (caretX - editorRect.left - 1) + 'px'; // caret child positioned relative to marker
+    } else {
+      // if region string, place caret at left/center/right
+      const caretX = region === 'left' ? editorRect.left + 8 : (region === 'right' ? editorRect.left + editorRect.width - 8 : editorRect.left + editorRect.width / 2);
+      MOVE_STATE.overlayCaret.style.left = (caretX - editorRect.left - 1) + 'px';
+    }
+
+    // place vertically at nearest block (caret-like)
+    try {
+      const dropIndex = computeDropIndexFromPoint(clientX, clientY);
+      const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+      let placed = false;
+      for (const ch of children) {
+        try {
+          const blot = Quill.find(ch);
+          const idx = blot ? editor.getIndex(blot) : null;
+          if (idx === null) continue;
+          const r = ch.getBoundingClientRect();
+          const nextIdx = idx + (ch.innerText ? ch.innerText.length : (ch.querySelector('img, figure') ? 1 : 0)) + 1;
+          if (dropIndex >= idx && dropIndex < nextIdx) {
+            marker.style.top = (r.top - 2) + 'px';
+            marker.style.display = 'block';
+            placed = true;
+            break;
+          }
+        } catch (e) { continue; }
+      }
+      if (!placed) {
+        marker.style.top = (editorRect.bottom - 2) + 'px';
+        marker.style.display = 'block';
+      }
+    } catch (err) {
+      const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+      let placed = false;
+      for (const ch of children) {
+        const r = ch.getBoundingClientRect();
+        const mid = r.top + r.height / 2;
+        if (clientY < mid) {
+          marker.style.top = (r.top - 2) + 'px';
+          marker.style.display = 'block';
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        marker.style.top = (editorRect.bottom - 2) + 'px';
+        marker.style.display = 'block';
+      }
     }
   }
 
@@ -1304,21 +1451,15 @@
     if (MOVE_STATE.overlayMarker) MOVE_STATE.overlayMarker.style.display = 'none';
   }
 
-  // Begin move - called on mousedown on a figure
   function beginMove(figureEl, ev) {
-    // guard: don't start on caption or controls
     if (ev.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
-
     MOVE_STATE.active = true;
     MOVE_STATE.figureEl = figureEl;
     MOVE_STATE.val = FigureBlot.value(figureEl);
-
     try {
       const blot = Quill.find(figureEl);
       MOVE_STATE.originalIndex = blot ? editor.getIndex(blot) : null;
-    } catch (e) {
-      MOVE_STATE.originalIndex = null;
-    }
+    } catch (e) { MOVE_STATE.originalIndex = null; }
 
     const rect = figureEl.getBoundingClientRect();
     MOVE_STATE.offsetX = ev.clientX - rect.left;
@@ -1328,18 +1469,25 @@
     MOVE_STATE.ghost.style.left = ev.clientX + 'px';
     MOVE_STATE.ghost.style.top = ev.clientY + 'px';
 
-    // hide original visually to indicate move (but keep in DOM)
+    // initial preview: prefer numeric alignPercent, else map legacy align string -> percent
+    if (MOVE_STATE.val && typeof MOVE_STATE.val.alignPercent === 'number') {
+      MOVE_STATE.previewAlign = MOVE_STATE.val.alignPercent;
+    } else if (MOVE_STATE.val && MOVE_STATE.val.align) {
+      MOVE_STATE.previewAlign = (MOVE_STATE.val.align === 'left' ? 0.05 : (MOVE_STATE.val.align === 'right' ? 0.95 : 0.5));
+    } else {
+      MOVE_STATE.previewAlign = 0.5;
+    }
+    updateGhostBadge(MOVE_STATE.previewAlign);
+
     figureEl.style.visibility = 'hidden';
     figureEl.classList.add('dragging');
 
     try { editor.disable(); } catch (e) {}
 
-    // store last point
     MOVE_STATE.lastClientX = ev.clientX;
     MOVE_STATE.lastClientY = ev.clientY;
 
-    // show initial overlay marker
-    showOverlayMarkerAt(ev.clientX, ev.clientY);
+    showOverlayMarkerAt(ev.clientX, ev.clientY, MOVE_STATE.previewAlign);
   }
 
   function onMoveMouse(e) {
@@ -1353,88 +1501,125 @@
       MOVE_STATE.ghost.style.top = e.clientY + 'px';
     }
 
-    // update overlay marker visually (no DOM mutations inside editor.root)
+    // alignment preview (precise percent)
+    const newPct = getAlignPercentFromClientX(e.clientX);
+    // small threshold to avoid too many style updates
+    if (Math.abs(newPct - (MOVE_STATE.previewAlign || 0)) > 0.005) {
+      MOVE_STATE.previewAlign = newPct;
+      updateGhostBadge(newPct);
+    }
+
     const editorRect = editor.root.getBoundingClientRect();
     if (e.clientY < editorRect.top) {
-      showOverlayMarkerAt(e.clientX, editorRect.top + 2);
+      showOverlayMarkerAt(e.clientX, editorRect.top + 2, MOVE_STATE.previewAlign);
     } else if (e.clientY > editorRect.bottom) {
-      showOverlayMarkerAt(e.clientX, editorRect.bottom - 2);
+      showOverlayMarkerAt(e.clientX, editorRect.bottom - 2, MOVE_STATE.previewAlign);
     } else {
-      showOverlayMarkerAt(e.clientX, e.clientY);
+      showOverlayMarkerAt(e.clientX, e.clientY, MOVE_STATE.previewAlign);
     }
   }
 
   function endMove(e) {
-    if (!MOVE_STATE.active) return;
-    e && e.preventDefault();
+  if (!MOVE_STATE.active) return;
+  e && e.preventDefault();
 
-    // compute drop index from last stored client coordinates
-    const dropIndex = computeDropIndexFromPoint(MOVE_STATE.lastClientX, MOVE_STATE.lastClientY);
+  const dropIndex = computeDropIndexFromPoint(MOVE_STATE.lastClientX, MOVE_STATE.lastClientY);
 
-    // cleanup visuals
-    if (MOVE_STATE.ghost) { try { MOVE_STATE.ghost.remove(); } catch (err) {} MOVE_STATE.ghost = null; }
-    hideOverlayMarker();
+  if (MOVE_STATE.ghost) { try { MOVE_STATE.ghost.remove(); } catch (err) {} MOVE_STATE.ghost = null; MOVE_STATE.ghostBadge = null; }
+  hideOverlayMarker();
 
-    // reveal original element back (we will delete it after successful move)
-    if (MOVE_STATE.figureEl) {
-      MOVE_STATE.figureEl.style.visibility = '';
-      MOVE_STATE.figureEl.classList.remove('dragging');
-    }
-
-    try { editor.enable(); } catch (e) {}
-
-    // no valid drop index? abort
-    if (typeof dropIndex !== 'number') {
-      MOVE_STATE.active = false;
-      MOVE_STATE.figureEl = null;
-      MOVE_STATE.val = null;
-      MOVE_STATE.originalIndex = null;
-      return;
-    }
-
-    // if original index exists and the drop is effectively the same location => no-op
-    if (MOVE_STATE.originalIndex !== null && (MOVE_STATE.originalIndex === dropIndex || MOVE_STATE.originalIndex + 1 === dropIndex)) {
-      MOVE_STATE.active = false;
-      MOVE_STATE.figureEl = null;
-      MOVE_STATE.val = null;
-      MOVE_STATE.originalIndex = null;
-      return;
-    }
-
-    // Perform the move safely: delete original (if we have index), adjust dropIndex, insert new embed
-    try {
-      let finalIndex = dropIndex;
-      if (MOVE_STATE.originalIndex !== null) {
-        // if original is before final insertion point, deleting it will shift indexes left
-        if (MOVE_STATE.originalIndex < finalIndex) finalIndex = finalIndex - 1;
-        // delete only the single blot (figure). This shouldn't remove adjacent text.
-        editor.deleteText(MOVE_STATE.originalIndex, 1, Quill.sources.USER);
-      }
-
-      // Insert the figure at the computed finalIndex
-      if (MOVE_STATE.val) {
-        editor.insertEmbed(finalIndex, 'figure', MOVE_STATE.val, Quill.sources.USER);
-        editor.insertText(finalIndex + 1, '\n', Quill.sources.SILENT);
-        editor.setSelection(finalIndex + 2, 0, Quill.sources.SILENT);
-        setTimeout(() => attachObserversToAllFigures(), 60);
-      }
-    } catch (err) {
-      console.warn('move failed', err);
-    }
-
-    // final cleanup
-    MOVE_STATE.active = false;
-    MOVE_STATE.figureEl = null;
-    MOVE_STATE.val = null;
-    MOVE_STATE.originalIndex = null;
+  if (MOVE_STATE.figureEl) {
+    MOVE_STATE.figureEl.style.visibility = '';
+    MOVE_STATE.figureEl.classList.remove('dragging');
   }
 
-  // Attach mouse handlers
+  try { editor.enable(); } catch (e) {}
+
+  if (typeof dropIndex !== 'number') {
+    MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
+    return;
+  }
+
+  // If we dropped back into the same spot, allow an *alignment-only* update
+  if (MOVE_STATE.originalIndex !== null && (MOVE_STATE.originalIndex === dropIndex || MOVE_STATE.originalIndex + 1 === dropIndex)) {
+    try {
+      // compute numeric preview percent
+      const previewPercent = (typeof MOVE_STATE.previewAlign === 'number')
+        ? MOVE_STATE.previewAlign
+        : (MOVE_STATE.previewAlign === 'left' ? 0.05 : (MOVE_STATE.previewAlign === 'right' ? 0.95 : 0.5));
+
+      // read current value from the existing DOM element (use the element reference if still present)
+      let currentVal = null;
+      try {
+        currentVal = FigureBlot.value(MOVE_STATE.figureEl);
+      } catch (err) {
+        // fallback: try to find blot at originalIndex
+        try {
+          const possibleBlot = Quill.find(editor.getLeaf(MOVE_STATE.originalIndex)[0]);
+          if (possibleBlot && possibleBlot.domNode) currentVal = FigureBlot.value(possibleBlot.domNode);
+        } catch (e) { /* ignore */ }
+      }
+
+      if (currentVal) {
+        const currentPercent = (typeof currentVal.alignPercent === 'number') ? currentVal.alignPercent
+          : (currentVal.align === 'left' ? 0.05 : (currentVal.align === 'right' ? 0.95 : 0.5));
+
+        if (Math.abs((currentPercent || 0) - (previewPercent || 0)) > 0.005) {
+          // update and persist in-place (no movement)
+          currentVal.alignPercent = previewPercent;
+          currentVal.align = (previewPercent < 0.33) ? 'left' : (previewPercent > 0.66 ? 'right' : 'center');
+
+          try {
+            // find blot and index to replace safely
+            const blot = Quill.find(MOVE_STATE.figureEl);
+            const idx = blot ? editor.getIndex(blot) : MOVE_STATE.originalIndex;
+            if (typeof idx === 'number') {
+              editor.deleteText(idx, 1, Quill.sources.SILENT);
+              editor.insertEmbed(idx, 'figure', currentVal, Quill.sources.USER);
+              editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
+              editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
+              setTimeout(() => attachObserversToAllFigures(), 60);
+            }
+          } catch (err) { console.warn('alignment update failed', err); }
+        }
+      }
+    } catch (err) { /* ignore alignment-only failures */ }
+
+    // clean up state and return (we handled alignment or had nothing to change)
+    MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
+    return;
+  }
+
+  // Normal move flow: remove original (if needed) and insert at final position
+  try {
+    let finalIndex = dropIndex;
+    if (MOVE_STATE.originalIndex !== null) {
+      if (MOVE_STATE.originalIndex < finalIndex) finalIndex = finalIndex - 1;
+      editor.deleteText(MOVE_STATE.originalIndex, 1, Quill.sources.USER);
+    }
+
+    if (MOVE_STATE.val) {
+      // apply previewed alignment as numeric percent and keep legacy align string for compatibility
+      const percent = (typeof MOVE_STATE.previewAlign === 'number') ? MOVE_STATE.previewAlign : (MOVE_STATE.previewAlign === 'left' ? 0.05 : (MOVE_STATE.previewAlign === 'right' ? 0.95 : 0.5));
+      MOVE_STATE.val.alignPercent = percent;
+      MOVE_STATE.val.align = (percent < 0.33) ? 'left' : (percent > 0.66 ? 'right' : 'center');
+
+      editor.insertEmbed(finalIndex, 'figure', MOVE_STATE.val, Quill.sources.USER);
+      editor.insertText(finalIndex + 1, '\n', Quill.sources.SILENT);
+      editor.setSelection(finalIndex + 2, 0, Quill.sources.SILENT);
+      setTimeout(() => attachObserversToAllFigures(), 60);
+    }
+  } catch (err) {
+    console.warn('move failed', err);
+  }
+
+  MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
+}
+  // mouse handlers
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     const fig = e.target.closest && e.target.closest('figure.custom-figure');
     if (!fig) return;
-    // don't start move when clicking controls/caption/handles
     if (e.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
     e.preventDefault();
     beginMove(fig, e);
@@ -1443,13 +1628,12 @@
   document.addEventListener('mousemove', onMoveMouse);
   document.addEventListener('mouseup', endMove);
 
-  // cleanup on unload
+  // cleanup
   window.addEventListener('beforeunload', () => {
-    if (MOVE_STATE.ghost) try { MOVE_STATE.ghost.remove(); } catch (e) { }
-    if (MOVE_STATE.overlayMarker) try { MOVE_STATE.overlayMarker.remove(); } catch (e) { }
+    if (MOVE_STATE.ghost) try { MOVE_STATE.ghost.remove(); } catch (e) {}
+    if (MOVE_STATE.overlayMarker) try { MOVE_STATE.overlayMarker.remove(); } catch (e) {}
   });
 })();
-// closer
 
     /* ---------------------------
        Modal UI logic (insert FigureBlot)
@@ -2466,4 +2650,3 @@
   </script>
 </body>
 </html>
-
