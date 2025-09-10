@@ -28,6 +28,15 @@
       box-sizing: border-box
     }
 
+    body {
+      background: var(--page-bg);
+      font-family: "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 42px 12px;
+      color: var(--text)
+    }
+
     .editor-card {
       width: 100%;
       max-width: 1080px;
@@ -35,7 +44,8 @@
       background: var(--card-bg);
       box-shadow: var(--shadow);
       border: 1px solid #eef0f4;
-      position: relative
+      position: relative;
+      overflow: visible;
     }
 
     .ql-toolbar.ql-snow {
@@ -154,7 +164,7 @@
 
     #char-count {
       position: absolute;
-      bottom: -80px;
+      bottom: 15px;
       right: 16px;
       background: rgba(0, 0, 0, 0.05);
       color: #555;
@@ -692,9 +702,9 @@
       </div>
     </div>
   </div>
-  <div>
+  <!-- <div>
     <button type="button" id="get-data">submit</button>
-  </div>
+  </div> -->
   <!-- external libraries first, app script last -->
   <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
@@ -2445,32 +2455,13 @@
     let selectedFigure = null; // currently selected figure
 
     // Click handler
-    editorEl.addEventListener('click', (e) => {
-      const figureToolbar = document.querySelector('.figure-toolbar');
-      // User clicked on media, do nothing here
-      if (figureToolbar) {
-        figureToolbar.style.display = 'none';
-      }
-    });
-    const editorContainer = document.getElementById("editor");
-
-    // Create tags after editor (only once)
-    const preciousContent = document.createElement("pre");
-    preciousContent.id = "preciousContent";
-
-    const justTextContent = document.createElement("pre");
-    justTextContent.id = "justTextContent";
-
-    const justHtmlContent = document.createElement("pre");
-    justHtmlContent.id = "justHtmlContent";
-
-    document.getElementById("get-data").addEventListener("click", () => {
-      var delta = editor.getContents();
-      var text = editor.getText();
-      var justHtml = editor.root.innerHTML;
-      const setData = editor.clipboard.convert({html:justHtml})
-      editor.setContents(setData, 'silent')
-    });
+    // editorEl.addEventListener('click', (e) => {
+    //   const figureToolbar = document.querySelector('.figure-toolbar');
+    //   // User clicked on media, do nothing here
+    //   if (figureToolbar) {
+    //     figureToolbar.style.display = 'none';
+    //   }
+    // });
   </script>
 </body>
 </html>
