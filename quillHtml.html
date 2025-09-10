@@ -602,6 +602,18 @@
     .insert-marker { transition: opacity .08s ease; }
     .insert-marker .insert-marker-caret { transition: left .05s linear; }
     .figure-align-badge { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    /* Apply to editor media */
+    figure.custom-figure {
+      position: absolute;
+      cursor: grab;
+      user-select: none;
+      transition: opacity 0.2s;
+    }
+
+    figure.custom-figure.dragging {
+      cursor: grabbing;
+      opacity: 0.7;
+    }
   </style>
 </head>
 
@@ -1178,460 +1190,50 @@ Quill.register(FigureBlot);
     attachObserversToAllFigures();
     editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
 
-    // -------------------------
-// Drag-to-move for figures WITH horizontal alignment preview & apply-on-drop
-// (Replace previous drag-to-move IIFE with this block)
-// -------------------------
 (() => {
-  const MOVE_STATE = {
-    active: false,
-    figureEl: null,
-    originalIndex: null,
-    val: null,
-    offsetX: 0,
-    offsetY: 0,
-    ghost: null,
-    ghostBadge: null,
-    overlayMarker: null,
-    overlayCaret: null,
-    lastClientX: 0,
-    lastClientY: 0,
-    previewAlign: null // numeric 0..1 (center=0.5) OR null
-  };
+  const editorRoot = editor.root;
+  let activeEl = null;
+  let offsetX = 0, offsetY = 0;
 
-  function createGhost(node) {
-    const ghost = node.cloneNode(true);
-    ghost.style.position = 'fixed';
-    ghost.style.pointerEvents = 'none';
-    ghost.style.margin = '0';
-    ghost.style.zIndex = 99999;
-    ghost.style.opacity = '0.86';
-    ghost.style.width = Math.min(420, node.getBoundingClientRect().width) + 'px';
-    ghost.style.transform = 'translate(-50%,-50%) scale(0.98)';
-    // small badge to indicate previewed alignment (percent)
-    const badge = document.createElement('div');
-    badge.className = 'figure-align-badge';
-    badge.style.position = 'absolute';
-    badge.style.top = '6px';
-    badge.style.right = '6px';
-    badge.style.padding = '4px 6px';
-    badge.style.borderRadius = '6px';
-    badge.style.fontSize = '12px';
-    badge.style.fontWeight = '700';
-    badge.style.background = 'rgba(0,0,0,0.6)';
-    badge.style.color = '#fff';
-    badge.style.pointerEvents = 'none';
-    badge.style.zIndex = 999999;
-    badge.textContent = '';
-    ghost.style.boxSizing = 'border-box';
-    ghost.style.position = 'fixed';
-    ghost.style.display = 'block';
-    ghost.appendChild(badge);
-    document.body.appendChild(ghost);
-    MOVE_STATE.ghostBadge = badge;
-    return ghost;
-  }
+  editorRoot.addEventListener('mousedown', (e) => {
+    const fig = e.target.closest('figure.custom-figure');
+    if (fig) {
+      activeEl = fig;
+      activeEl.classList.add('dragging');
 
-  function ensureOverlayMarker() {
-    if (MOVE_STATE.overlayMarker && MOVE_STATE.overlayMarker.parentNode) return MOVE_STATE.overlayMarker;
-    const m = document.createElement('div');
-    m.className = 'insert-marker';
-    m.style.position = 'fixed';
-    m.style.height = '4px';
-    m.style.background = 'rgba(0,123,255,0.85)';
-    m.style.left = '0px';
-    m.style.top = '0px';
-    m.style.borderRadius = '2px';
-    m.style.pointerEvents = 'none';
-    m.style.zIndex = 99998;
-    m.style.display = 'none';
-    // caret indicator for exact x position
-    const caret = document.createElement('div');
-    caret.className = 'insert-marker-caret';
-    caret.style.position = 'absolute';
-    caret.style.width = '2px';
-    caret.style.height = '18px';
-    caret.style.top = '-7px';
-    caret.style.background = 'rgba(10,10,10,0.9)';
-    caret.style.borderRadius = '1px';
-    caret.style.pointerEvents = 'none';
-    m.appendChild(caret);
-    document.body.appendChild(m);
-    MOVE_STATE.overlayMarker = m;
-    MOVE_STATE.overlayCaret = caret;
-    return m;
-  }
+      const rect = activeEl.getBoundingClientRect();
+      const containerRect = editorRoot.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
 
-  function computeDropIndexFromPoint(clientX, clientY) {
-      const editorRect = editor.root.getBoundingClientRect();
-      // outside: top -> start, bottom -> end
-      if (clientY < editorRect.top) return 0;
-      if (clientY > editorRect.bottom) return editor.getLength();
-
-      // element under pointer (quick figure-before/after check)
-      let el = document.elementFromPoint(clientX, clientY);
-      if (el) {
-        const fig = el.closest && el.closest('figure.custom-figure');
-        if (fig) {
-          try {
-            const targetBlot = Quill.find(fig);
-            const rect = fig.getBoundingClientRect();
-            const mid = rect.top + rect.height / 2;
-            const baseIndex = targetBlot ? editor.getIndex(targetBlot) : null;
-            if (baseIndex !== null) return clientY < mid ? baseIndex : baseIndex + 1;
-          } catch (e) { /* continue to more robust calculation */ }
-        }
-      }
-
-      // Try precise caret location first (best for dropping inside text)
-      let range = null;
-      if (document.caretRangeFromPoint) {
-        try { range = document.caretRangeFromPoint(clientX, clientY); } catch (e) { range = null; }
-      } else if (document.caretPositionFromPoint) {
-        try {
-          const p = document.caretPositionFromPoint(clientX, clientY);
-          if (p) { range = document.createRange(); range.setStart(p.offsetNode, p.offset); }
-        } catch (e) { range = null; }
-      }
-
-      if (range) {
-        try {
-          const forbidden = (node) => node && node.closest && node.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle');
-          if (!forbidden(range.startContainer)) {
-            const blot = Quill.find(range.startContainer, true);
-            if (blot) {
-              const baseIdx = editor.getIndex(blot);
-              if (range.startContainer.nodeType === Node.TEXT_NODE) {
-                const offset = range.startOffset || 0;
-                const idx = baseIdx + offset;
-                return Math.max(0, Math.min(idx, editor.getLength()));
-              }
-              return Math.max(0, Math.min(baseIdx, editor.getLength()));
-            }
-          }
-        } catch (err) { /* fall through to block scan fallback */ }
-      }
-
-      // Robust fallback: choose the top-level editor child whose vertical center is nearest to the pointer Y.
-      // Then, insert before or after that block depending on whether pointer is above/below its midpoint.
-      try {
-        const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
-        if (!children.length) return editor.getLength();
-
-        let closest = null;
-        let closestDist = Infinity;
-        for (const ch of children) {
-          const r = ch.getBoundingClientRect();
-          const centerY = r.top + (r.height / 2);
-          const dist = Math.abs(centerY - clientY);
-          if (dist < closestDist) { closestDist = dist; closest = { node: ch, rect: r, centerY }; }
-        }
-
-        if (closest) {
-          try {
-            const blot = Quill.find(closest.node);
-            const idx = blot ? editor.getIndex(blot) : null;
-            if (idx !== null) {
-              // if pointer is above center -> before block, else after block
-              return clientY < closest.centerY ? Math.max(0, idx) : Math.min(editor.getLength(), idx + 1);
-            }
-          } catch (e) { /* fallthrough to end */ }
-        }
-      } catch (e) { /* ignore */ }
-
-      // default to end
-      return editor.getLength();
+      e.preventDefault();
     }
-
-  // returns a number 0..1 based on pointer position inside editor
-  function getAlignPercentFromClientX(clientX) {
-    const editorRect = editor.root.getBoundingClientRect();
-    if (!editorRect.width) return 0.5;
-    let rel = (clientX - editorRect.left) / editorRect.width;
-    if (rel < 0) rel = 0;
-    if (rel > 1) rel = 1;
-    return rel;
-  }
-
-  function updateGhostBadge(alignOrPercent) {
-    if (!MOVE_STATE.ghostBadge) return;
-    if (typeof alignOrPercent === 'number') {
-      const pct = Math.round(alignOrPercent * 100);
-      MOVE_STATE.ghostBadge.textContent = `${pct}%`;
-      if (alignOrPercent < 0.33) MOVE_STATE.ghostBadge.style.background = 'rgba(90,120,200,0.95)';
-      else if (alignOrPercent > 0.66) MOVE_STATE.ghostBadge.style.background = 'rgba(90,200,120,0.95)';
-      else MOVE_STATE.ghostBadge.style.background = 'rgba(120,120,220,0.95)';
-    } else {
-      MOVE_STATE.ghostBadge.textContent = (alignOrPercent === 'left' ? 'L' : (alignOrPercent === 'right' ? 'R' : 'C'));
-      if (alignOrPercent === 'left') MOVE_STATE.ghostBadge.style.background = 'rgba(90,120,200,0.95)';
-      else if (alignOrPercent === 'right') MOVE_STATE.ghostBadge.style.background = 'rgba(90,200,120,0.95)';
-      else MOVE_STATE.ghostBadge.style.background = 'rgba(120,120,220,0.95)';
-    }
-  }
-
-  function showOverlayMarkerAt(clientX, clientY, previewAlign) {
-    const marker = ensureOverlayMarker();
-    const editorRect = editor.root.getBoundingClientRect();
-    marker.style.width = editorRect.width + 'px';
-    marker.style.left = editorRect.left + 'px';
-
-    // determine coarse region (for background tint) from numeric previewAlign
-    let region = 'center';
-    if (typeof previewAlign === 'number') {
-      if (previewAlign < 0.33) region = 'left';
-      else if (previewAlign > 0.66) region = 'right';
-      else region = 'center';
-    } else {
-      region = previewAlign || 'center';
-    }
-
-    if (region === 'left') {
-      marker.style.background = 'linear-gradient(90deg, rgba(0,123,255,0.85) 25%, rgba(0,0,0,0.06) 25%)';
-    } else if (region === 'right') {
-      marker.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06) 75%, rgba(0,123,255,0.85) 75%)';
-    } else {
-      marker.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,123,255,0.85) 50%, rgba(0,0,0,0.06) 100%)';
-    }
-
-    // caret position for exact alignment
-    if (typeof previewAlign === 'number') {
-      const caretX = Math.round(editorRect.left + previewAlign * editorRect.width);
-      MOVE_STATE.overlayCaret.style.left = (caretX - editorRect.left - 1) + 'px'; // caret child positioned relative to marker
-    } else {
-      // if region string, place caret at left/center/right
-      const caretX = region === 'left' ? editorRect.left + 8 : (region === 'right' ? editorRect.left + editorRect.width - 8 : editorRect.left + editorRect.width / 2);
-      MOVE_STATE.overlayCaret.style.left = (caretX - editorRect.left - 1) + 'px';
-    }
-
-    // place vertically at nearest block (caret-like)
-    try {
-      const dropIndex = computeDropIndexFromPoint(clientX, clientY);
-      const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
-      let placed = false;
-      for (const ch of children) {
-        try {
-          const blot = Quill.find(ch);
-          const idx = blot ? editor.getIndex(blot) : null;
-          if (idx === null) continue;
-          const r = ch.getBoundingClientRect();
-          const nextIdx = idx + (ch.innerText ? ch.innerText.length : (ch.querySelector('img, figure') ? 1 : 0)) + 1;
-          if (dropIndex >= idx && dropIndex < nextIdx) {
-            marker.style.top = (r.top - 2) + 'px';
-            marker.style.display = 'block';
-            placed = true;
-            break;
-          }
-        } catch (e) { continue; }
-      }
-      if (!placed) {
-        marker.style.top = (editorRect.bottom - 2) + 'px';
-        marker.style.display = 'block';
-      }
-    } catch (err) {
-      const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
-      let placed = false;
-      for (const ch of children) {
-        const r = ch.getBoundingClientRect();
-        const mid = r.top + r.height / 2;
-        if (clientY < mid) {
-          marker.style.top = (r.top - 2) + 'px';
-          marker.style.display = 'block';
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) {
-        marker.style.top = (editorRect.bottom - 2) + 'px';
-        marker.style.display = 'block';
-      }
-    }
-  }
-
-  function hideOverlayMarker() {
-    if (MOVE_STATE.overlayMarker) MOVE_STATE.overlayMarker.style.display = 'none';
-  }
-
-  function beginMove(figureEl, ev) {
-    if (ev.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
-    MOVE_STATE.active = true;
-    MOVE_STATE.figureEl = figureEl;
-    MOVE_STATE.val = FigureBlot.value(figureEl);
-    try {
-      const blot = Quill.find(figureEl);
-      MOVE_STATE.originalIndex = blot ? editor.getIndex(blot) : null;
-    } catch (e) { MOVE_STATE.originalIndex = null; }
-
-    const rect = figureEl.getBoundingClientRect();
-    MOVE_STATE.offsetX = ev.clientX - rect.left;
-    MOVE_STATE.offsetY = ev.clientY - rect.top;
-
-    MOVE_STATE.ghost = createGhost(figureEl);
-    MOVE_STATE.ghost.style.left = ev.clientX + 'px';
-    MOVE_STATE.ghost.style.top = ev.clientY + 'px';
-
-    // initial preview: prefer numeric alignPercent, else map legacy align string -> percent
-    if (MOVE_STATE.val && typeof MOVE_STATE.val.alignPercent === 'number') {
-      MOVE_STATE.previewAlign = MOVE_STATE.val.alignPercent;
-    } else if (MOVE_STATE.val && MOVE_STATE.val.align) {
-      MOVE_STATE.previewAlign = (MOVE_STATE.val.align === 'left' ? 0.05 : (MOVE_STATE.val.align === 'right' ? 0.95 : 0.5));
-    } else {
-      MOVE_STATE.previewAlign = 0.5;
-    }
-    updateGhostBadge(MOVE_STATE.previewAlign);
-
-    figureEl.style.visibility = 'hidden';
-    figureEl.classList.add('dragging');
-
-    try { editor.disable(); } catch (e) {}
-
-    MOVE_STATE.lastClientX = ev.clientX;
-    MOVE_STATE.lastClientY = ev.clientY;
-
-    showOverlayMarkerAt(ev.clientX, ev.clientY, MOVE_STATE.previewAlign);
-  }
-
-  function onMoveMouse(e) {
-    if (!MOVE_STATE.active) return;
-    e.preventDefault();
-    MOVE_STATE.lastClientX = e.clientX;
-    MOVE_STATE.lastClientY = e.clientY;
-
-    if (MOVE_STATE.ghost) {
-      MOVE_STATE.ghost.style.left = e.clientX + 'px';
-      MOVE_STATE.ghost.style.top = e.clientY + 'px';
-    }
-
-    // alignment preview (precise percent)
-    const newPct = getAlignPercentFromClientX(e.clientX);
-    // small threshold to avoid too many style updates
-    if (Math.abs(newPct - (MOVE_STATE.previewAlign || 0)) > 0.005) {
-      MOVE_STATE.previewAlign = newPct;
-      updateGhostBadge(newPct);
-    }
-
-    const editorRect = editor.root.getBoundingClientRect();
-    if (e.clientY < editorRect.top) {
-      showOverlayMarkerAt(e.clientX, editorRect.top + 2, MOVE_STATE.previewAlign);
-    } else if (e.clientY > editorRect.bottom) {
-      showOverlayMarkerAt(e.clientX, editorRect.bottom - 2, MOVE_STATE.previewAlign);
-    } else {
-      showOverlayMarkerAt(e.clientX, e.clientY, MOVE_STATE.previewAlign);
-    }
-  }
-
-  function endMove(e) {
-  if (!MOVE_STATE.active) return;
-  e && e.preventDefault();
-
-  const dropIndex = computeDropIndexFromPoint(MOVE_STATE.lastClientX, MOVE_STATE.lastClientY);
-
-  if (MOVE_STATE.ghost) { try { MOVE_STATE.ghost.remove(); } catch (err) {} MOVE_STATE.ghost = null; MOVE_STATE.ghostBadge = null; }
-  hideOverlayMarker();
-
-  if (MOVE_STATE.figureEl) {
-    MOVE_STATE.figureEl.style.visibility = '';
-    MOVE_STATE.figureEl.classList.remove('dragging');
-  }
-
-  try { editor.enable(); } catch (e) {}
-
-  if (typeof dropIndex !== 'number') {
-    MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
-    return;
-  }
-
-  // If we dropped back into the same spot, allow an *alignment-only* update
-  if (MOVE_STATE.originalIndex !== null && (MOVE_STATE.originalIndex === dropIndex || MOVE_STATE.originalIndex + 1 === dropIndex)) {
-    try {
-      // compute numeric preview percent
-      const previewPercent = (typeof MOVE_STATE.previewAlign === 'number')
-        ? MOVE_STATE.previewAlign
-        : (MOVE_STATE.previewAlign === 'left' ? 0.05 : (MOVE_STATE.previewAlign === 'right' ? 0.95 : 0.5));
-
-      // read current value from the existing DOM element (use the element reference if still present)
-      let currentVal = null;
-      try {
-        currentVal = FigureBlot.value(MOVE_STATE.figureEl);
-      } catch (err) {
-        // fallback: try to find blot at originalIndex
-        try {
-          const possibleBlot = Quill.find(editor.getLeaf(MOVE_STATE.originalIndex)[0]);
-          if (possibleBlot && possibleBlot.domNode) currentVal = FigureBlot.value(possibleBlot.domNode);
-        } catch (e) { /* ignore */ }
-      }
-
-      if (currentVal) {
-        const currentPercent = (typeof currentVal.alignPercent === 'number') ? currentVal.alignPercent
-          : (currentVal.align === 'left' ? 0.05 : (currentVal.align === 'right' ? 0.95 : 0.5));
-
-        if (Math.abs((currentPercent || 0) - (previewPercent || 0)) > 0.005) {
-          // update and persist in-place (no movement)
-          currentVal.alignPercent = previewPercent;
-          currentVal.align = (previewPercent < 0.33) ? 'left' : (previewPercent > 0.66 ? 'right' : 'center');
-
-          try {
-            // find blot and index to replace safely
-            const blot = Quill.find(MOVE_STATE.figureEl);
-            const idx = blot ? editor.getIndex(blot) : MOVE_STATE.originalIndex;
-            if (typeof idx === 'number') {
-              editor.deleteText(idx, 1, Quill.sources.SILENT);
-              editor.insertEmbed(idx, 'figure', currentVal, Quill.sources.USER);
-              editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
-              editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
-              setTimeout(() => attachObserversToAllFigures(), 60);
-            }
-          } catch (err) { console.warn('alignment update failed', err); }
-        }
-      }
-    } catch (err) { /* ignore alignment-only failures */ }
-
-    // clean up state and return (we handled alignment or had nothing to change)
-    MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
-    return;
-  }
-
-  // Normal move flow: remove original (if needed) and insert at final position
-  try {
-    let finalIndex = dropIndex;
-    if (MOVE_STATE.originalIndex !== null) {
-      if (MOVE_STATE.originalIndex < finalIndex) finalIndex = finalIndex - 1;
-      editor.deleteText(MOVE_STATE.originalIndex, 1, Quill.sources.USER);
-    }
-
-    if (MOVE_STATE.val) {
-      // apply previewed alignment as numeric percent and keep legacy align string for compatibility
-      const percent = (typeof MOVE_STATE.previewAlign === 'number') ? MOVE_STATE.previewAlign : (MOVE_STATE.previewAlign === 'left' ? 0.05 : (MOVE_STATE.previewAlign === 'right' ? 0.95 : 0.5));
-      MOVE_STATE.val.alignPercent = percent;
-      MOVE_STATE.val.align = (percent < 0.33) ? 'left' : (percent > 0.66 ? 'right' : 'center');
-
-      editor.insertEmbed(finalIndex, 'figure', MOVE_STATE.val, Quill.sources.USER);
-      editor.insertText(finalIndex + 1, '\n', Quill.sources.SILENT);
-      editor.setSelection(finalIndex + 2, 0, Quill.sources.SILENT);
-      setTimeout(() => attachObserversToAllFigures(), 60);
-    }
-  } catch (err) {
-    console.warn('move failed', err);
-  }
-
-  MOVE_STATE.active = false; MOVE_STATE.figureEl = null; MOVE_STATE.val = null; MOVE_STATE.originalIndex = null; MOVE_STATE.previewAlign = null;
-}
-  // mouse handlers
-  document.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    const fig = e.target.closest && e.target.closest('figure.custom-figure');
-    if (!fig) return;
-    if (e.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
-    e.preventDefault();
-    beginMove(fig, e);
   });
 
-  document.addEventListener('mousemove', onMoveMouse);
-  document.addEventListener('mouseup', endMove);
+  editorRoot.addEventListener('mousemove', (e) => {
+    if (activeEl) {
+      const containerRect = editorRoot.getBoundingClientRect();
+      let x = e.clientX - containerRect.left - offsetX;
+      let y = e.clientY - containerRect.top - offsetY;
 
-  // cleanup
-  window.addEventListener('beforeunload', () => {
-    if (MOVE_STATE.ghost) try { MOVE_STATE.ghost.remove(); } catch (e) {}
-    if (MOVE_STATE.overlayMarker) try { MOVE_STATE.overlayMarker.remove(); } catch (e) {}
+      // keep inside editor boundaries
+      x = Math.max(0, Math.min(x, containerRect.width - activeEl.offsetWidth));
+      y = Math.max(0, Math.min(y, containerRect.height - activeEl.offsetHeight));
+
+      activeEl.style.position = 'absolute';
+      activeEl.style.left = `${x}px`;
+      activeEl.style.top = `${y}px`;
+    }
+  });
+
+  editorRoot.addEventListener('mouseup', () => {
+    if (activeEl) activeEl.classList.remove('dragging');
+    activeEl = null;
+  });
+
+  editorRoot.addEventListener('mouseleave', () => {
+    if (activeEl) activeEl.classList.remove('dragging');
+    activeEl = null;
   });
 })();
 
