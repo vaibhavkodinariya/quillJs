@@ -1867,6 +1867,176 @@ Quill.register(FigureBlot);
     const tb = document.querySelector('.ql-toolbar');
     if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
 
+     /* ---------------------------
+       Drag and drop support (images + native videos) -> inserts FigureBlot
+       --------------------------- */
+       const editorCard = document.querySelector('.editor-card');
+    const editorRoot = editor.root;
+
+    editorRoot.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      editorCard.classList.add("drag-over");
+      editorRoot.classList.add("drag-target");
+    });
+
+    editorRoot.addEventListener("dragleave", (e) => {
+      editorCard.classList.remove("drag-over");
+      editorRoot.classList.remove("drag-target");
+    });
+
+    function findExistingMediaElementBySrc(url) {
+      if (!url) return null;
+      const norm = normalizeUrl(url);
+      const imgs = Array.from(editor.root.querySelectorAll('img'));
+      for (const img of imgs) {
+        try {
+          const s = img.currentSrc || img.getAttribute('src') || '';
+          if (!s) continue;
+          if (normalizeUrl(s) === norm) return img;
+        } catch (e) { }
+      }
+      const vids = Array.from(editor.root.querySelectorAll('video'));
+      for (const v of vids) {
+        try {
+          const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
+          if (!s) continue;
+          if (normalizeUrl(s) === norm) return v;
+        } catch (e) { }
+      }
+      return null;
+    }
+
+    editorRoot.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editorCard.classList.remove("drag-over");
+      editorRoot.classList.remove("drag-target");
+
+      if (!e.dataTransfer) return;
+
+      const items = Array.from(e.dataTransfer.items || []);
+      const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+      const fallbackFiles = Array.from(e.dataTransfer.files || []);
+      const realFiles = files.length ? files : fallbackFiles;
+
+      if (!realFiles.length) {
+        return;
+      }
+
+      const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
+      let insertIndex = Math.max(0, selection.index);
+
+      window.__suppressDropInserts = true;
+      const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+
+      (async () => {
+        for (const file of realFiles) {
+          try {
+            if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+              (async () => {
+                window.__suppressDropInserts = true;
+                const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
+                try {
+                  let finalUrl;
+                  if (file.type.startsWith("image/")) {
+                    finalUrl = await new Promise((res, rej) => {
+                      const r = new FileReader();
+                      r.onload = (ev) => res(ev.target.result);
+                      r.onerror = rej;
+                      r.readAsDataURL(file);
+                    });
+                  } else {
+                    try {
+                      finalUrl = URL.createObjectURL(file);
+                      blobUrlTracker.add(finalUrl);
+                    } catch (err) {
+                      finalUrl = await new Promise((res, rej) => {
+                        const r = new FileReader();
+                        r.onload = (ev) => res(ev.target.result);
+                        r.onerror = rej;
+                        r.readAsDataURL(file);
+                      });
+                    }
+                  }
+                  if (!finalUrl) return;
+                  const key = normalizeUrl(finalUrl);
+                  markInserted(key);
+
+                  const existing = findExistingMediaElementBySrc(finalUrl);
+
+                  if (existing) {
+                    try {
+                      const fig = existing.closest && existing.closest('figure.custom-figure');
+                      if (fig) {
+                        const media = fig.querySelector('img, video');
+                        if (media) {
+                          if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
+                            (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
+                            if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
+                            else {
+                              const srcEl = media.querySelector('source') || document.createElement('source');
+                              srcEl.src = finalUrl;
+                              if (!media.querySelector('source')) media.appendChild(srcEl);
+                              media.load && media.load();
+                            }
+                            const parentBlot = Quill.find(fig);
+                            if (parentBlot) {
+                              const idx = editor.getIndex(parentBlot);
+                              const val = FigureBlot.value(fig);
+                              editor.deleteText(idx, 1, Quill.sources.SILENT);
+                              editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
+                            }
+                          }
+                        }
+                        const blot = Quill.find(fig);
+                        if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
+                        clearSuppressionLater();
+                        setTimeout(() => attachObserversToAllFigures(), 60);
+                        return;
+                      }
+                      const blot = Quill.find(existing);
+                      if (blot) {
+                        const idx = editor.getIndex(blot);
+                        const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+                        editor.deleteText(idx, 1, Quill.sources.SILENT);
+                        editor.insertEmbed(idx, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+                        editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
+                        editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
+                        clearSuppressionLater();
+                        setTimeout(() => attachObserversToAllFigures(), 60);
+                        return;
+                      }
+                    } catch (err) {
+                      console.warn('existing-media convert failed', err);
+                    }
+                  }
+
+                  const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
+                  const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
+                  editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
+                  editor.insertText(selectionIndex + 1, '\n', Quill.sources.SILENT);
+                  editor.setSelection(selectionIndex + 2, 0, Quill.sources.SILENT);
+                  setTimeout(() => attachObserversToAllFigures(), 60);
+                  clearSuppressionLater();
+                } catch (err) {
+                  console.warn('drop insert failed', err);
+                  window.__suppressDropInserts = false;
+                }
+              })();
+
+              return;
+            }
+          } catch (err) {
+            console.warn('drop processing error', err);
+          }
+        }
+
+        setTimeout(() => attachObserversToAllFigures(), 80);
+        editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
+        clearSuppression();
+      })();
+    });
+
     /* ---------------------------
        Controls attachment for figure (toolbar, resize handle, caption edit, link)
        --------------------------- */
