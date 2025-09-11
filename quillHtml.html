@@ -614,6 +614,49 @@
       cursor: grabbing;
       opacity: 0.7;
     }
+    /* Base figure styles */
+    figure.custom-figure {
+      cursor: grab;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      position: relative;
+    }
+
+    /* Dragging state */
+    figure.custom-figure.dragging {
+      /* z-index: 1000; */
+      opacity: 0.9;
+      /* border-color: #007bff; */
+      /* box-shadow: 0 5px 20px rgba(0, 123, 255, 0.4); */
+      cursor: grabbing;
+      opacity: 0.7;
+    }
+
+/* Invalid drop position */
+figure.custom-figure.invalid-drop {
+  border-color: #dc3545 !important;
+  box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4) !important;
+}
+
+/* Prevent text selection during drag */
+body.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Editor root styles */
+.editor-root {
+  position: relative;
+  min-height: 300px;
+}
+
+/* Ensure proper positioning */
+figure.custom-figure[style*="position: absolute"] {
+  pointer-events: auto;
+}
   </style>
 </head>
 
@@ -1190,50 +1233,179 @@ Quill.register(FigureBlot);
     attachObserversToAllFigures();
     editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
 
-(() => {
+    (() => {
   const editorRoot = editor.root;
   let activeEl = null;
   let offsetX = 0, offsetY = 0;
-
+  let originalPosition = { left: '', top: '', position: '' };
+  let isDragging = false;
+  
+  // Simple collision detection
+  function hasCollision(element, x, y) {
+    const proposedRect = {
+      left: x,
+      top: y,
+      right: x + element.offsetWidth,
+      bottom: y + element.offsetHeight
+    };
+    
+    const containerRect = editorRoot.getBoundingClientRect();
+    
+    // Check collision with other figures
+    const otherFigures = editorRoot.querySelectorAll('figure.custom-figure');
+    for (let fig of otherFigures) {
+      if (fig === element) continue;
+      
+      const figRect = fig.getBoundingClientRect();
+      const relativeRect = {
+        left: figRect.left - containerRect.left,
+        top: figRect.top - containerRect.top,
+        right: figRect.right - containerRect.left,
+        bottom: figRect.bottom - containerRect.top
+      };
+      
+      if (isOverlapping(proposedRect, relativeRect)) {
+        return true;
+      }
+    }
+    
+    // Check collision with text elements
+    const textElements = editorRoot.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span, div, li');
+    for (let textEl of textElements) {
+      if (textEl.closest('figure.custom-figure') || 
+          textEl.textContent.trim() === '' || 
+          textEl.contains(element)) {
+        continue;
+      }
+      
+      const textRect = textEl.getBoundingClientRect();
+      if (textRect.width > 0 && textRect.height > 0) {
+        const relativeTextRect = {
+          left: textRect.left - containerRect.left,
+          top: textRect.top - containerRect.top,
+          right: textRect.right - containerRect.left,
+          bottom: textRect.bottom - containerRect.top
+        };
+        
+        if (isOverlapping(proposedRect, relativeTextRect)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  function isOverlapping(rect1, rect2) {
+    return !(rect1.right <= rect2.left || 
+             rect1.left >= rect2.right || 
+             rect1.bottom <= rect2.top || 
+             rect1.top >= rect2.bottom);
+  }
+  
   editorRoot.addEventListener('mousedown', (e) => {
     const fig = e.target.closest('figure.custom-figure');
-    if (fig) {
+    if (fig && e.button === 0) {
       activeEl = fig;
-      activeEl.classList.add('dragging');
-
+      isDragging = false;
+      
+      // Store original position
+      originalPosition = {
+        left: activeEl.style.left || '',
+        top: activeEl.style.top || '',
+        position: activeEl.style.position || ''
+      };
+      
       const rect = activeEl.getBoundingClientRect();
       const containerRect = editorRoot.getBoundingClientRect();
       offsetX = e.clientX - rect.left;
       offsetY = e.clientY - rect.top;
-
+      
       e.preventDefault();
+      e.stopPropagation();
     }
   });
-
-  editorRoot.addEventListener('mousemove', (e) => {
+  
+  document.addEventListener('mousemove', (e) => {
     if (activeEl) {
+      if (!isDragging) {
+        isDragging = true;
+        activeEl.classList.add('dragging');
+        activeEl.style.position = 'absolute';
+        activeEl.style.zIndex = '1000';
+        document.body.style.userSelect = 'none';
+      }
+      
       const containerRect = editorRoot.getBoundingClientRect();
       let x = e.clientX - containerRect.left - offsetX;
       let y = e.clientY - containerRect.top - offsetY;
-
-      // keep inside editor boundaries
+      
+      // Keep inside editor boundaries
       x = Math.max(0, Math.min(x, containerRect.width - activeEl.offsetWidth));
       y = Math.max(0, Math.min(y, containerRect.height - activeEl.offsetHeight));
-
-      activeEl.style.position = 'absolute';
+      
+      // Update position
       activeEl.style.left = `${x}px`;
       activeEl.style.top = `${y}px`;
+      
+      // Check collision and add visual feedback
+      if (hasCollision(activeEl, x, y)) {
+        activeEl.classList.add('invalid-drop');
+      } else {
+        activeEl.classList.remove('invalid-drop');
+      }
     }
   });
-
-  editorRoot.addEventListener('mouseup', () => {
-    if (activeEl) activeEl.classList.remove('dragging');
+  
+  document.addEventListener('mouseup', () => {
+    if (activeEl && isDragging) {
+      const currentX = parseInt(activeEl.style.left) || 0;
+      const currentY = parseInt(activeEl.style.top) || 0;
+      
+      // If collision detected, revert to original position
+      if (hasCollision(activeEl, currentX, currentY)) {
+        activeEl.style.left = originalPosition.left;
+        activeEl.style.top = originalPosition.top;
+        activeEl.style.position = originalPosition.position;
+        
+        if (originalPosition.position !== 'absolute') {
+          activeEl.style.zIndex = '';
+        }
+      }
+      
+      activeEl.classList.remove('dragging', 'invalid-drop');
+      
+      document.body.style.userSelect = '';
+    }
+    
     activeEl = null;
+    isDragging = false;
   });
-
+  
+  // Handle mouse leaving editor
   editorRoot.addEventListener('mouseleave', () => {
-    if (activeEl) activeEl.classList.remove('dragging');
+    if (activeEl && isDragging) {
+      activeEl.style.left = originalPosition.left;
+      activeEl.style.top = originalPosition.top;
+      activeEl.style.position = originalPosition.position;
+      
+      if (originalPosition.position !== 'absolute') {
+        activeEl.style.zIndex = '';
+      }
+      
+      activeEl.classList.remove('dragging', 'invalid-drop');
+      document.body.style.userSelect = '';
+    }
+    
     activeEl = null;
+    isDragging = false;
+  });
+  
+  // Prevent default drag on images
+  editorRoot.addEventListener('dragstart', (e) => {
+    if (e.target.closest('figure.custom-figure')) {
+      e.preventDefault();
+    }
   });
 })();
 
@@ -1696,175 +1868,6 @@ Quill.register(FigureBlot);
     if (tb) toolbarObserver.observe(tb, { childList: true, subtree: true });
 
     /* ---------------------------
-       Drag and drop support (images + native videos) -> inserts FigureBlot
-       --------------------------- */
-    const editorCard = document.querySelector('.editor-card');
-    const editorRoot = editor.root;
-
-    editorRoot.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      editorCard.classList.add("drag-over");
-      editorRoot.classList.add("drag-target");
-    });
-
-    editorRoot.addEventListener("dragleave", (e) => {
-      editorCard.classList.remove("drag-over");
-      editorRoot.classList.remove("drag-target");
-    });
-
-    function findExistingMediaElementBySrc(url) {
-      if (!url) return null;
-      const norm = normalizeUrl(url);
-      const imgs = Array.from(editor.root.querySelectorAll('img'));
-      for (const img of imgs) {
-        try {
-          const s = img.currentSrc || img.getAttribute('src') || '';
-          if (!s) continue;
-          if (normalizeUrl(s) === norm) return img;
-        } catch (e) { }
-      }
-      const vids = Array.from(editor.root.querySelectorAll('video'));
-      for (const v of vids) {
-        try {
-          const s = v.currentSrc || v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || '';
-          if (!s) continue;
-          if (normalizeUrl(s) === norm) return v;
-        } catch (e) { }
-      }
-      return null;
-    }
-
-    editorRoot.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      editorCard.classList.remove("drag-over");
-      editorRoot.classList.remove("drag-target");
-
-      if (!e.dataTransfer) return;
-
-      const items = Array.from(e.dataTransfer.items || []);
-      const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
-      const fallbackFiles = Array.from(e.dataTransfer.files || []);
-      const realFiles = files.length ? files : fallbackFiles;
-
-      if (!realFiles.length) {
-        return;
-      }
-
-      const selection = editor.getSelection(true) || { index: editor.getLength(), length: 0 };
-      let insertIndex = Math.max(0, selection.index);
-
-      window.__suppressDropInserts = true;
-      const clearSuppression = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
-
-      (async () => {
-        for (const file of realFiles) {
-          try {
-            if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
-              (async () => {
-                window.__suppressDropInserts = true;
-                const clearSuppressionLater = () => setTimeout(() => { window.__suppressDropInserts = false; }, 350);
-                try {
-                  let finalUrl;
-                  if (file.type.startsWith("image/")) {
-                    finalUrl = await new Promise((res, rej) => {
-                      const r = new FileReader();
-                      r.onload = (ev) => res(ev.target.result);
-                      r.onerror = rej;
-                      r.readAsDataURL(file);
-                    });
-                  } else {
-                    try {
-                      finalUrl = URL.createObjectURL(file);
-                      blobUrlTracker.add(finalUrl);
-                    } catch (err) {
-                      finalUrl = await new Promise((res, rej) => {
-                        const r = new FileReader();
-                        r.onload = (ev) => res(ev.target.result);
-                        r.onerror = rej;
-                        r.readAsDataURL(file);
-                      });
-                    }
-                  }
-                  if (!finalUrl) return;
-                  const key = normalizeUrl(finalUrl);
-                  markInserted(key);
-
-                  const existing = findExistingMediaElementBySrc(finalUrl);
-
-                  if (existing) {
-                    try {
-                      const fig = existing.closest && existing.closest('figure.custom-figure');
-                      if (fig) {
-                        const media = fig.querySelector('img, video');
-                        if (media) {
-                          if ((media.tagName.toLowerCase() === 'img' && media.getAttribute('src') !== finalUrl) ||
-                            (media.tagName.toLowerCase() === 'video' && (media.querySelector('source')?.getAttribute('src') !== finalUrl))) {
-                            if (media.tagName.toLowerCase() === 'img') media.src = finalUrl;
-                            else {
-                              const srcEl = media.querySelector('source') || document.createElement('source');
-                              srcEl.src = finalUrl;
-                              if (!media.querySelector('source')) media.appendChild(srcEl);
-                              media.load && media.load();
-                            }
-                            const parentBlot = Quill.find(fig);
-                            if (parentBlot) {
-                              const idx = editor.getIndex(parentBlot);
-                              const val = FigureBlot.value(fig);
-                              editor.deleteText(idx, 1, Quill.sources.SILENT);
-                              editor.insertEmbed(idx, 'figure', val, Quill.sources.USER);
-                            }
-                          }
-                        }
-                        const blot = Quill.find(fig);
-                        if (blot) editor.setSelection(editor.getIndex(blot) + 1, 0, Quill.sources.SILENT);
-                        clearSuppressionLater();
-                        setTimeout(() => attachObserversToAllFigures(), 60);
-                        return;
-                      }
-                      const blot = Quill.find(existing);
-                      if (blot) {
-                        const idx = editor.getIndex(blot);
-                        const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
-                        editor.deleteText(idx, 1, Quill.sources.SILENT);
-                        editor.insertEmbed(idx, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
-                        editor.insertText(idx + 1, '\n', Quill.sources.SILENT);
-                        editor.setSelection(idx + 2, 0, Quill.sources.SILENT);
-                        clearSuppressionLater();
-                        setTimeout(() => attachObserversToAllFigures(), 60);
-                        return;
-                      }
-                    } catch (err) {
-                      console.warn('existing-media convert failed', err);
-                    }
-                  }
-
-                  const type = file.type.startsWith('video/') || urlLooksLikeVideo(finalUrl) ? 'video' : 'image';
-                  const selectionIndex = (editor.getSelection() && editor.getSelection().index) || editor.getLength();
-                  editor.insertEmbed(selectionIndex, 'figure', { url: finalUrl, type, caption: '' }, Quill.sources.USER);
-                  editor.insertText(selectionIndex + 1, '\n', Quill.sources.SILENT);
-                  editor.setSelection(selectionIndex + 2, 0, Quill.sources.SILENT);
-                  setTimeout(() => attachObserversToAllFigures(), 60);
-                  clearSuppressionLater();
-                } catch (err) {
-                  console.warn('drop insert failed', err);
-                  window.__suppressDropInserts = false;
-                }
-              })();
-
-              return;
-            }
-          } catch (err) {
-            console.warn('drop processing error', err);
-          }
-        }
-
-        setTimeout(() => attachObserversToAllFigures(), 80);
-        editor.setSelection(insertIndex, 0, Quill.sources.SILENT);
-        clearSuppression();
-      })();
-    });
-    /* ---------------------------
        Controls attachment for figure (toolbar, resize handle, caption edit, link)
        --------------------------- */
     function attachControls(figureEl) {
@@ -1944,21 +1947,21 @@ Quill.register(FigureBlot);
           const media = figureEl.querySelector('img,video');
           if (!media) return;
 
-          media.style.outline = "2px dashed #007bff"
-          const offsetLeft = media.offsetLeft;
-          const offsetTop = media.offsetTop;
-          const w = media.offsetWidth;
-          const h = media.offsetHeight;
+            media.style.outline = "2px dashed #007bff"
+            const offsetLeft = media.offsetLeft;
+            const offsetTop = media.offsetTop;
+            const w = media.offsetWidth;
+            const h = media.offsetHeight;
 
-          // left/top, right/top, right/bottom, left/bottom
-          corners.tl.style.left = (offsetLeft - 6) + 'px';
-          corners.tl.style.top = (offsetTop - 4) + 'px';
+            // left/top, right/top, right/bottom, left/bottom
+            corners.tl.style.left = (offsetLeft - 6) + 'px';
+            corners.tl.style.top = (offsetTop - 4) + 'px';
 
-          corners.tr.style.left = ((offsetLeft + w - corners.tr.offsetWidth) + 6) + 'px';
-          corners.tr.style.top = (offsetTop - 4) + 'px';
+            corners.tr.style.left = ((offsetLeft + w - corners.tr.offsetWidth) + 6) + 'px';
+            corners.tr.style.top = (offsetTop - 4) + 'px';
 
-          corners.br.style.left = ((offsetLeft + w - corners.br.offsetWidth) + 7) + 'px';
-          corners.br.style.top = ((offsetTop + h - corners.br.offsetHeight) + 4) + 'px';
+            corners.br.style.left = ((offsetLeft + w - corners.br.offsetWidth) + 7) + 'px';
+            corners.br.style.top = ((offsetTop + h - corners.br.offsetHeight) + 4) + 'px';
 
           corners.bl.style.left = (offsetLeft - 6) + 'px';
           corners.bl.style.top = (offsetTop + h - corners.bl.offsetHeight + 4) + 'px';
