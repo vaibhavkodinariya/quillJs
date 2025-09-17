@@ -1233,180 +1233,667 @@ Quill.register(FigureBlot);
     attachObserversToAllFigures();
     editor.on('text-change', (debounce(() => attachObserversToAllFigures(), 150)));
 
-    (() => {
+   (() => {
+  const DEBUG = false; // set true for console logs
+
+  const MODE = { NONE: 0, VERTICAL: 1, HORIZONTAL: 2 };
+  const MOVE = {
+    mode: MODE.NONE,
+    activeFig: null,
+    startX: 0, startY: 0,
+    lastClientX: 0, lastClientY: 0,
+    offsetX: 0, offsetY: 0,
+    ghost: null,
+    overlayMarker: null,
+    originalIndex: null,
+    val: null,
+    originalPosition: { left: '', top: '', position: '', zIndex: '' },
+    editorRootPositionWasStatic: false,
+    isDragging: false
+  };
+
   const editorRoot = editor.root;
-  let activeEl = null;
-  let offsetX = 0, offsetY = 0;
-  let originalPosition = { left: '', top: '', position: '' };
-  let isDragging = false;
-  
-  // Simple collision detection
-  function hasCollision(element, x, y) {
+
+  /* -------------------------
+     Utilities
+     ------------------------- */
+  function log(...args) { if (DEBUG) console.log('[figure-drag]', ...args); }
+
+  function createGhost(node) {
+    const ghost = node.cloneNode(true);
+    ghost.style.position = 'fixed';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.margin = '0';
+    ghost.style.zIndex = 99999;
+    ghost.style.opacity = '0.85';
+    try {
+      ghost.style.width = Math.min(420, node.getBoundingClientRect().width) + 'px';
+    } catch (e) {}
+    ghost.style.transform = 'translate(-50%,-50%) scale(0.98)';
+    document.body.appendChild(ghost);
+    return ghost;
+  }
+
+  function ensureOverlayMarker() {
+    if (MOVE.overlayMarker && MOVE.overlayMarker.parentNode) return MOVE.overlayMarker;
+    const m = document.createElement('div');
+    m.className = 'insert-marker';
+    m.style.position = 'fixed';
+    m.style.height = '4px';
+    m.style.background = 'rgba(0,123,255,0.85)';
+    m.style.width = '0px';
+    m.style.left = '0px';
+    m.style.top = '0px';
+    m.style.borderRadius = '2px';
+    m.style.pointerEvents = 'none';
+    m.style.zIndex = 99998;
+    m.style.display = 'none';
+    document.body.appendChild(m);
+    MOVE.overlayMarker = m;
+    return m;
+  }
+
+  function hideOverlayMarker() {
+    if (MOVE.overlayMarker) MOVE.overlayMarker.style.display = 'none';
+  }
+
+  /* -------------------------
+     computeDropIndexFromPoint - robust
+     ------------------------- */
+  function computeDropIndexFromPoint(clientX, clientY) {
+    const editorRect = editor.root.getBoundingClientRect();
+    // outside top -> index 0
+    if (clientY < editorRect.top) return 0;
+    // outside bottom -> end
+    if (clientY > editorRect.bottom) return editor.getLength();
+
+    // Prefer caretRangeFromPoint / caretPositionFromPoint for precise text positions
+    try {
+      let range = null;
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(clientX, clientY);
+      } else if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(clientX, clientY);
+        if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+      } else if (document.elementsFromPoint) {
+        // fallback: nearest element
+        const els = document.elementsFromPoint(clientX, clientY);
+        if (els && els.length) range = null;
+      }
+
+      if (range) {
+        const node = range.startContainer;
+        // find nearest blot for this node
+        try {
+          const blot = Quill.find(node, true);
+          if (blot) {
+            const idx = editor.getIndex(blot);
+            if (node.nodeType === 3) {
+              return idx + (range.startOffset || 0);
+            }
+            return idx;
+          }
+        } catch (e) { /* ignore */ }
+      }
+    } catch (err) {
+      log('caret range error', err);
+    }
+
+    // If caret approach fails, try element midpoint scanning
+    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+    for (const ch of children) {
+      const r = ch.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      try {
+        const blot = Quill.find(ch);
+        const baseIndex = blot ? editor.getIndex(blot) : null;
+        if (baseIndex === null) continue;
+        if (clientY < mid) return baseIndex;
+      } catch (e) { continue; }
+    }
+
+    // fallback to end
+    return editor.getLength();
+  }
+
+  /* -------------------------
+     showOverlayMarkerAt - improved
+     ------------------------- */
+  function showOverlayMarkerAt(clientX, clientY) {
+    const marker = ensureOverlayMarker();
+    const editorRect = editor.root.getBoundingClientRect();
+    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+    let placed = false;
+    for (const ch of children) {
+      const r = ch.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      if (clientY < mid) {
+        marker.style.left = editorRect.left + 'px';
+        marker.style.width = editorRect.width + 'px';
+        marker.style.top = (r.top - 2) + 'px';
+        marker.style.display = 'block';
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      marker.style.left = editorRect.left + 'px';
+      marker.style.width = editorRect.width + 'px';
+      marker.style.top = (editorRect.bottom - 2) + 'px';
+      marker.style.display = 'block';
+    }
+  }
+
+  /* -------------------------
+     findSafeDropIndex - avoid dropping onto another figure
+     ------------------------- */
+  function findSafeDropIndex(candidateIndex, movingFigure) {
+    const len = editor.getLength();
+    let idx = Math.max(0, Math.min(candidateIndex, len));
+
+    // quick no-op check
+    if (MOVE.originalIndex !== null && (MOVE.originalIndex === idx || MOVE.originalIndex + 1 === idx)) return idx;
+
+    // compute moving rect (approx)
+    let movingRect = null;
+    try { if (movingFigure && movingFigure.getBoundingClientRect) movingRect = movingFigure.getBoundingClientRect(); } catch (e) { movingRect = null; }
+    if (!movingRect) return idx;
+
+    // helper: get rect of element at given insertion position (next element)
+    const children = Array.from(editor.root.children).filter(n => n.nodeType === 1);
+    function rectAt(pos) {
+      for (const ch of children) {
+        try {
+          const blot = Quill.find(ch);
+          const base = blot ? editor.getIndex(blot) : null;
+          if (base === null) continue;
+          if (base === pos || base === pos - 1) return ch.getBoundingClientRect();
+        } catch (e) { continue; }
+      }
+      return null;
+    }
+
+    function causesOverlapAt(pos) {
+      const prevRect = rectAt(pos - 1);
+      const nextRect = rectAt(pos);
+      const tol = 6;
+      if (prevRect && !(movingRect.top >= prevRect.bottom - tol)) return true;
+      if (nextRect && !(movingRect.bottom <= nextRect.top + tol)) return true;
+      return false;
+    }
+
+    if (!causesOverlapAt(idx)) return idx;
+
+    const maxScan = Math.max(children.length + 3, 30);
+    for (let offset = 1; offset < maxScan; offset++) {
+      const up = idx - offset;
+      if (up >= 0 && !causesOverlapAt(up)) return up;
+      const down = idx + offset;
+      if (down <= len && !causesOverlapAt(down)) return down;
+    }
+
+    return idx;
+  }
+
+  /* -------------------------
+     Begin / On / End Vertical
+     ------------------------- */
+  function beginVerticalMove(fig, ev) {
+    if (!fig) return;
+    if (ev && ev.target && ev.target.closest && ev.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
+
+    MOVE.mode = MODE.VERTICAL;
+    MOVE.activeFig = fig;
+    try { MOVE.val = FigureBlot.value(fig); } catch (e) { MOVE.val = null; }
+
+    try {
+      const blot = Quill.find(fig);
+      MOVE.originalIndex = blot ? editor.getIndex(blot) : null;
+    } catch (e) { MOVE.originalIndex = null; }
+
+    const rect = fig.getBoundingClientRect();
+    MOVE.offsetX = (ev && ev.clientX ? ev.clientX - rect.left : rect.width / 2);
+    MOVE.offsetY = (ev && ev.clientY ? ev.clientY - rect.top : rect.height / 2);
+
+    MOVE.ghost = createGhost(fig);
+    MOVE.ghost.style.left = (ev && ev.clientX ? ev.clientX : rect.left + rect.width / 2) + 'px';
+    MOVE.ghost.style.top = (ev && ev.clientY ? ev.clientY : rect.top + rect.height / 2) + 'px';
+
+    fig.style.visibility = 'hidden';
+    fig.classList.add('dragging');
+
+    try { editor.disable(); } catch (e) {}
+
+    MOVE.lastClientX = ev && ev.clientX ? ev.clientX : 0;
+    MOVE.lastClientY = ev && ev.clientY ? ev.clientY : 0;
+
+    showOverlayMarkerAt(MOVE.lastClientX || rect.left, MOVE.lastClientY || rect.top);
+  }
+
+  function onVerticalMoveMouse(e) {
+    if (!MOVE.activeFig || MOVE.mode !== MODE.VERTICAL) return;
+    try { if (e.preventDefault) e.preventDefault(); } catch (err) {}
+    MOVE.lastClientX = e.clientX;
+    MOVE.lastClientY = e.clientY;
+    if (MOVE.ghost) {
+      MOVE.ghost.style.left = e.clientX + 'px';
+      MOVE.ghost.style.top = e.clientY + 'px';
+    }
+    const editorRect = editor.root.getBoundingClientRect();
+    if (e.clientY < editorRect.top) {
+      showOverlayMarkerAt(e.clientX, editorRect.top + 2);
+    } else if (e.clientY > editorRect.bottom) {
+      showOverlayMarkerAt(e.clientX, editorRect.bottom - 2);
+    } else {
+      showOverlayMarkerAt(e.clientX, e.clientY);
+    }
+  }
+
+  function endVerticalMove(e) {
+    if (!MOVE.activeFig || MOVE.mode !== MODE.VERTICAL) return;
+    if (e && e.preventDefault) e.preventDefault();
+
+    const cx = (MOVE.lastClientX || (e && e.clientX) || 0);
+    const cy = (MOVE.lastClientY || (e && e.clientY) || 0);
+    let dropIndex = computeDropIndexFromPoint(cx, cy);
+
+    if (MOVE.ghost) { try { MOVE.ghost.remove(); } catch (err) {} MOVE.ghost = null; }
+    hideOverlayMarker();
+
+    try { editor.enable(); } catch (err) {}
+
+    if (MOVE.activeFig) {
+      MOVE.activeFig.style.visibility = '';
+      MOVE.activeFig.classList.remove('dragging');
+    }
+
+    if (typeof dropIndex !== 'number' || isNaN(dropIndex)) { resetMoveState(); return; }
+
+    if (MOVE.originalIndex !== null && (MOVE.originalIndex === dropIndex || MOVE.originalIndex + 1 === dropIndex)) {
+      resetMoveState();
+      return;
+    }
+
+    try {
+      const safeIndex = findSafeDropIndex(dropIndex, MOVE.activeFig);
+      let finalIndex = safeIndex;
+      if (MOVE.originalIndex !== null && MOVE.originalIndex < finalIndex) finalIndex = finalIndex - 1;
+
+      if (MOVE.originalIndex !== null && typeof MOVE.originalIndex === 'number') {
+        editor.deleteText(MOVE.originalIndex, 1, Quill.sources.USER);
+      }
+
+      if (MOVE.val) {
+        editor.insertEmbed(finalIndex, 'figure', MOVE.val, Quill.sources.USER);
+        editor.insertText(finalIndex + 1, '\n', Quill.sources.SILENT);
+        try { editor.setSelection(finalIndex + 2, 0, Quill.sources.SILENT); } catch (err) {}
+        setTimeout(() => { try { if (typeof attachObserversToAllFigures === 'function') attachObserversToAllFigures(); } catch (err) {} }, 60);
+      }
+    } catch (err) {
+      console.warn('endVerticalMove: failed', err);
+    }
+    
+    try { editor.enable(); } catch (e) {}
+    try { editor.focus(); } catch (e) {}
+    resetMoveState();
+  }
+
+  /* -------------------------
+     Begin / On / End Horizontal
+     (kept straightforward - no major changes)
+     ------------------------- */
+  function beginHorizontalMove(fig, ev) {
+    if (!fig) return;
+    if (ev && ev.target && ev.target.closest && ev.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
+
+    MOVE.mode = MODE.HORIZONTAL;
+    MOVE.activeFig = fig;
+    MOVE.isDragging = true;
+
+    MOVE.originalPosition = {
+      left: fig.style.left || '',
+      top: fig.style.top || '',
+      position: fig.style.position || '',
+      zIndex: fig.style.zIndex || ''
+    };
+
+    const rect = fig.getBoundingClientRect();
+    const containerRect = editorRoot.getBoundingClientRect();
+    MOVE.offsetX = ev.clientX - rect.left;
+    MOVE.offsetY = ev.clientY - rect.top;
+
+    // --- NEW: ensure editor root has enough height to host an absolute overlay ---
+  try {
+    const containerRect = editorRoot.getBoundingClientRect();
+    const needed = fig.offsetHeight + 80; // give extra padding
+    if (containerRect.height < needed) {
+      // set an inline minHeight so we don't disturb other styles permanently
+      editorRoot.style.minHeight = needed + 'px';
+    }
+    // Also ensure editorRoot is positioned (relative) so absolute children use it as reference
+    const cs = window.getComputedStyle(editorRoot);
+    if (cs.position === 'static' || !cs.position) {
+      editorRoot.style.position = 'relative';
+      MOVE.editorRootPositionWasStatic = true; // preserve restore behavior later
+    }
+  } catch (e) { /* ignore if layout query fails */ }
+
+    const cs = window.getComputedStyle(editorRoot);
+    if (cs.position === 'static' || !cs.position) {
+      MOVE.editorRootPositionWasStatic = true;
+      editorRoot.style.position = 'relative';
+    } else {
+      MOVE.editorRootPositionWasStatic = false;
+    }
+
+    fig.classList.add('dragging');
+    fig.style.position = 'absolute';
+    fig.style.zIndex = '1000';
+
+    const left = ev.clientX - containerRect.left - MOVE.offsetX;
+    const top = ev.clientY - containerRect.top - MOVE.offsetY;
+    fig.style.left = `${Math.max(0, Math.min(left, containerRect.width - fig.offsetWidth))}px`;
+    fig.style.top = `${Math.max(0, Math.min(top, containerRect.height - fig.offsetHeight))}px`;
+
+    document.body.style.userSelect = 'none';
+    MOVE.lastClientX = ev.clientX;
+    MOVE.lastClientY = ev.clientY;
+  }
+
+  function onHorizontalMoveMouse(e) {
+    if (!MOVE.activeFig || MOVE.mode !== MODE.HORIZONTAL) return;
+    try { e.preventDefault(); } catch (err) {}
+    MOVE.lastClientX = e.clientX;
+    MOVE.lastClientY = e.clientY;
+
+    const containerRect = editorRoot.getBoundingClientRect();
+    let x = e.clientX - containerRect.left - MOVE.offsetX;
+    let y = e.clientY - containerRect.top - MOVE.offsetY;
+
+    x = Math.max(0, Math.min(x, containerRect.width - MOVE.activeFig.offsetWidth));
+    y = Math.max(0, Math.min(y, containerRect.height - MOVE.activeFig.offsetHeight));
+
+    MOVE.activeFig.style.left = `${x}px`;
+    MOVE.activeFig.style.top = `${y}px`;
+
+    // collision class toggle
+    if (hasCollision(MOVE.activeFig, x, y)) {
+      MOVE.activeFig.classList.add('invalid-drop');
+    } else {
+      MOVE.activeFig.classList.remove('invalid-drop');
+    }
+  }
+
+  function endHorizontalMove() {
+    if (!MOVE.activeFig || MOVE.mode !== MODE.HORIZONTAL) return;
+
+    const containerRect = editorRoot.getBoundingClientRect();
+    const currentX = parseInt(MOVE.activeFig.style.left) || 0;
+    const currentY = parseInt(MOVE.activeFig.style.top) || 0;
+
+    if (hasCollision(MOVE.activeFig, currentX, currentY)) {
+      MOVE.activeFig.style.left = MOVE.originalPosition.left;
+      MOVE.activeFig.style.top = MOVE.originalPosition.top;
+      MOVE.activeFig.style.position = MOVE.originalPosition.position;
+      MOVE.activeFig.style.zIndex = MOVE.originalPosition.zIndex;
+    } else {
+      // keep absolute overlay if desired
+    }
+
+    MOVE.activeFig.classList.remove('dragging', 'invalid-drop');
+    document.body.style.userSelect = '';
+
+    if (MOVE.editorRootPositionWasStatic) editorRoot.style.position = '';
+    try { editor.enable(); } catch (e) {}
+    try { editor.focus(); } catch (e) {}
+
+    resetMoveState();
+  }
+
+  /* small helper collision test (used by horizontal path) */
+  function hasCollision(element, x, y, tolerance = 6) {
     const proposedRect = {
-      left: x,
-      top: y,
+      left: x, top: y,
       right: x + element.offsetWidth,
       bottom: y + element.offsetHeight
     };
-    
-    const containerRect = editorRoot.getBoundingClientRect();
-    
-    // Check collision with other figures
-    const otherFigures = editorRoot.querySelectorAll('figure.custom-figure');
-    for (let fig of otherFigures) {
+    const others = editorRoot.querySelectorAll('figure.custom-figure');
+    for (const fig of others) {
       if (fig === element) continue;
-      
-      const figRect = fig.getBoundingClientRect();
-      const relativeRect = {
-        left: figRect.left - containerRect.left,
-        top: figRect.top - containerRect.top,
-        right: figRect.right - containerRect.left,
-        bottom: figRect.bottom - containerRect.top
-      };
-      
-      if (isOverlapping(proposedRect, relativeRect)) {
+      const r = fig.getBoundingClientRect();
+      if (!(proposedRect.right - tolerance <= r.left ||
+        proposedRect.left + tolerance >= r.right ||
+        proposedRect.bottom - tolerance <= r.top ||
+        proposedRect.top + tolerance >= r.bottom)) {
         return true;
       }
     }
-    
-    // Check collision with text elements
-    const textElements = editorRoot.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span, div, li');
-    for (let textEl of textElements) {
-      if (textEl.closest('figure.custom-figure') || 
-          textEl.textContent.trim() === '' || 
-          textEl.contains(element)) {
-        continue;
-      }
-      
-      const textRect = textEl.getBoundingClientRect();
-      if (textRect.width > 0 && textRect.height > 0) {
-        const relativeTextRect = {
-          left: textRect.left - containerRect.left,
-          top: textRect.top - containerRect.top,
-          right: textRect.right - containerRect.left,
-          bottom: textRect.bottom - containerRect.top
-        };
-        
-        if (isOverlapping(proposedRect, relativeTextRect)) {
-          return true;
-        }
-      }
-    }
-    
     return false;
   }
-  
-  function isOverlapping(rect1, rect2) {
-    return !(rect1.right <= rect2.left || 
-             rect1.left >= rect2.right || 
-             rect1.bottom <= rect2.top || 
-             rect1.top >= rect2.bottom);
+
+  function resetMoveState() {
+    // Release pointer capture if we captured one
+    try {
+      if (MOVE._pointerId && MOVE.activeFig && MOVE.activeFig.releasePointerCapture) {
+        MOVE.activeFig.releasePointerCapture(MOVE._pointerId);
+      }
+    } catch (err) { /* ignore */ }
+    MOVE._pointerId = null;
+
+    // Restore DOM and editor state
+    MOVE.mode = MODE.NONE;
+    MOVE.activeFig = null;
+    MOVE.startX = MOVE.startY = MOVE.offsetX = MOVE.offsetY = 0;
+    MOVE.lastClientX = MOVE.lastClientY = 0;
+    if (MOVE.ghost) { try { MOVE.ghost.remove(); } catch (e) {} MOVE.ghost = null; }
+    hideOverlayMarker();
+    MOVE.originalIndex = null;
+    MOVE.val = null;
+    MOVE.isDragging = false;
+    MOVE.editorRootPositionWasStatic = false;
+
+    // IMPORTANT: restore page selection and editor focus so typing works
+    try { document.body.style.userSelect = ''; } catch (e) {}
+    try { if (typeof editor.enable === 'function') editor.enable(); } catch (e) {}
+    try { if (typeof editor.focus === 'function') editor.focus(); } catch (e) {}
   }
-  
-  editorRoot.addEventListener('mousedown', (e) => {
-    const fig = e.target.closest('figure.custom-figure');
-    if (fig && e.button === 0) {
-      activeEl = fig;
-      isDragging = false;
-      
-      // Store original position
-      originalPosition = {
-        left: activeEl.style.left || '',
-        top: activeEl.style.top || '',
-        position: activeEl.style.position || ''
-      };
-      
-      const rect = activeEl.getBoundingClientRect();
-      const containerRect = editorRoot.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-      
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
-  
-  document.addEventListener('mousemove', (e) => {
-    if (activeEl) {
-      if (!isDragging) {
-        isDragging = true;
-        activeEl.classList.add('dragging');
-        activeEl.style.position = 'absolute';
-        activeEl.style.zIndex = '1000';
-        document.body.style.userSelect = 'none';
+
+
+  /* -------------------------
+     Pointer-based main wiring (pointerdown/move/up/cancel)
+     ------------------------- */
+  let pendingFrame = null;
+  let lastPointerEvent = null;
+  const AUTO_SCROLL_MARGIN = 40;
+  const AUTO_SCROLL_SPEED = 12;
+
+  function scheduleFrame(handler) {
+    if (pendingFrame) return;
+    pendingFrame = requestAnimationFrame(() => {
+      pendingFrame = null;
+      handler();
+    });
+  }
+
+  function autoScrollIfNeeded(clientY) {
+    try {
+      const rect = editorRoot.getBoundingClientRect();
+      if (clientY < rect.top + AUTO_SCROLL_MARGIN) {
+        const amount = Math.min(AUTO_SCROLL_SPEED, rect.top + AUTO_SCROLL_MARGIN - clientY);
+        if (editorRoot.scrollTop - amount >= 0) editorRoot.scrollTop -= amount;
+        else editorRoot.scrollTop = 0;
+        return true;
+      } else if (clientY > rect.bottom - AUTO_SCROLL_MARGIN) {
+        const amount = Math.min(AUTO_SCROLL_SPEED, clientY - (rect.bottom - AUTO_SCROLL_MARGIN));
+        editorRoot.scrollTop += amount;
+        return true;
       }
-      
-      const containerRect = editorRoot.getBoundingClientRect();
-      let x = e.clientX - containerRect.left - offsetX;
-      let y = e.clientY - containerRect.top - offsetY;
-      
-      // Keep inside editor boundaries
-      x = Math.max(0, Math.min(x, containerRect.width - activeEl.offsetWidth));
-      y = Math.max(0, Math.min(y, containerRect.height - activeEl.offsetHeight));
-      
-      // Update position
-      activeEl.style.left = `${x}px`;
-      activeEl.style.top = `${y}px`;
-      
-      // Check collision and add visual feedback
-      if (hasCollision(activeEl, x, y)) {
-        activeEl.classList.add('invalid-drop');
-      } else {
-        activeEl.classList.remove('invalid-drop');
+    } catch (e) {}
+    return false;
+  }
+
+  function considerSwitchToVerticalDuringHorizontal(e) {
+    if (!MOVE.activeFig || MOVE.mode !== MODE.HORIZONTAL) return;
+    const dy = Math.abs(e.clientY - MOVE.startY);
+    const dx = Math.abs(e.clientX - MOVE.startX);
+    if (dy > dx + 8) {
+      // convert into vertical
+      try { switchToVerticalMove(e); } catch (err) {
+        endHorizontalMove();
+        beginVerticalMove(MOVE.activeFig, e);
       }
     }
-  });
-  
-  document.addEventListener('mouseup', () => {
-    if (activeEl && isDragging) {
-      const currentX = parseInt(activeEl.style.left) || 0;
-      const currentY = parseInt(activeEl.style.top) || 0;
-      
-      // If collision detected, revert to original position
-      if (hasCollision(activeEl, currentX, currentY)) {
-        activeEl.style.left = originalPosition.left;
-        activeEl.style.top = originalPosition.top;
-        activeEl.style.position = originalPosition.position;
-        
-        if (originalPosition.position !== 'absolute') {
-          activeEl.style.zIndex = '';
+  }
+
+  function pointerMoveHandler(ev) {
+    if (ev.isPrimary === false) return;
+    lastPointerEvent = ev;
+    if (!pendingFrame) {
+      scheduleFrame(() => {
+        if (!lastPointerEvent) return;
+        const e = lastPointerEvent; lastPointerEvent = null;
+        if (!MOVE.activeFig) return;
+
+        if (MOVE.mode === MODE.HORIZONTAL) considerSwitchToVerticalDuringHorizontal(e);
+
+        if (MOVE.mode === MODE.HORIZONTAL) {
+          onHorizontalMoveMouse(e);
+        } else if (MOVE.mode === MODE.VERTICAL) {
+          onVerticalMoveMouse(e);
+          autoScrollIfNeeded(e.clientY);
+        } else {
+          const dx = e.clientX - MOVE.startX;
+          const dy = e.clientY - MOVE.startY;
+          const threshold = 10;
+          if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+            try {
+              if (e.preventDefault) e.preventDefault(); // stop native selection/scroll now that a drag is starting
+              if (e.stopPropagation) e.stopPropagation();
+            } catch (err) {}
+           // then call the begin function
+            if (Math.abs(dx) > Math.abs(dy)) beginHorizontalMove(MOVE.activeFig, e);
+            else beginVerticalMove(MOVE.activeFig, e);
+          }
         }
-      }
-      
-      activeEl.classList.remove('dragging', 'invalid-drop');
-      
-      document.body.style.userSelect = '';
+      });
     }
-    
-    activeEl = null;
-    isDragging = false;
-  });
-  
-  // Handle mouse leaving editor
-  editorRoot.addEventListener('mouseleave', () => {
-    if (activeEl && isDragging) {
-      activeEl.style.left = originalPosition.left;
-      activeEl.style.top = originalPosition.top;
-      activeEl.style.position = originalPosition.position;
-      
-      if (originalPosition.position !== 'absolute') {
-        activeEl.style.zIndex = '';
+  }
+
+  function pointerUpHandler(ev) {
+  if (!MOVE.activeFig) return;
+  try {
+    if (MOVE.mode === MODE.HORIZONTAL) endHorizontalMove();
+    else if (MOVE.mode === MODE.VERTICAL) endVerticalMove(ev);
+    else resetMoveState();
+  } finally {
+    // ensure editor state restored
+    try { if (typeof editor.enable === 'function') editor.enable(); } catch (e) {}
+    try { if (typeof editor.focus === 'function') editor.focus(); } catch (e) {}
+    // release pointer capture defensively
+    try { if (MOVE._pointerId && MOVE.activeFig && MOVE.activeFig.releasePointerCapture) MOVE.activeFig.releasePointerCapture(MOVE._pointerId); } catch (e) {}
+    MOVE._pointerId = null;
+  }
+}
+
+
+  function pointerCancelHandler(ev) {
+    if (!MOVE.activeFig) return;
+    // revert exactly like Escape
+    if (MOVE.mode === MODE.VERTICAL) {
+      if (MOVE.ghost) try { MOVE.ghost.remove(); } catch (e) {} MOVE.ghost = null;
+      if (MOVE.activeFig) {
+        MOVE.activeFig.style.visibility = '';
+        MOVE.activeFig.classList.remove('dragging');
       }
-      
-      activeEl.classList.remove('dragging', 'invalid-drop');
-      document.body.style.userSelect = '';
+      try { editor.enable(); } catch (err) {}
+      hideOverlayMarker();
+    } else if (MOVE.mode === MODE.HORIZONTAL) {
+      if (MOVE.activeFig) {
+        MOVE.activeFig.style.left = MOVE.originalPosition.left;
+        MOVE.activeFig.style.top = MOVE.originalPosition.top;
+        MOVE.activeFig.style.position = MOVE.originalPosition.position;
+        MOVE.activeFig.style.zIndex = MOVE.originalPosition.zIndex;
+        MOVE.activeFig.classList.remove('dragging', 'invalid-drop');
+      }
+      if (MOVE.editorRootPositionWasStatic) editorRoot.style.position = '';
     }
-    
-    activeEl = null;
-    isDragging = false;
+    resetMoveState();
+  }
+
+  editorRoot.addEventListener('pointerdown', (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (!e.isPrimary) return;
+
+  const fig = e.target.closest && e.target.closest('figure.custom-figure');
+  if (!fig) return;
+  if (e.target.closest('.ql-caption, figcaption, .figure-toolbar, .fig-corner, .resize-overlay, .fig-resize-handle')) return;
+
+  // record start coords and candidate figure — but DON'T preventDefault here.
+  // Preventing here prevents editor focus/typing after the click.
+  MOVE.startX = e.clientX;
+  MOVE.startY = e.clientY;
+  MOVE.activeFig = fig;
+  MOVE.mode = MODE.NONE;
+  MOVE.isDragging = false;
+
+  // track pointerId so we can release capture later
+  MOVE._pointerId = e.pointerId;
+
+  // capture pointer so pointermove/up still come to this element if supported
+  try { if (fig.setPointerCapture) fig.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+
+  document.addEventListener('pointermove', pointerMoveHandler, { passive: false });
+  document.addEventListener('pointerup', pointerUpHandler, { passive: false });
+  document.addEventListener('pointercancel', pointerCancelHandler, { passive: false });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && MOVE.activeFig) {
+      pointerCancelHandler({});
+    }
   });
-  
-  // Prevent default drag on images
+
   editorRoot.addEventListener('dragstart', (e) => {
-    if (e.target.closest('figure.custom-figure')) {
-      e.preventDefault();
-    }
+    if (e.target.closest('figure.custom-figure')) e.preventDefault();
   });
+
+  window.addEventListener('beforeunload', () => {
+    if (MOVE.ghost) try { MOVE.ghost.remove(); } catch (e) { }
+    if (MOVE.overlayMarker) try { MOVE.overlayMarker.remove(); } catch (e) { }
+  });
+
+  /* expose a safe switch function (used when converting horizontal->vertical) */
+  function switchToVerticalMove(ev) {
+    if (!MOVE.activeFig) return;
+    try { MOVE.val = FigureBlot.value(MOVE.activeFig); } catch (e) { MOVE.val = null; }
+    try { const blot = Quill.find(MOVE.activeFig); MOVE.originalIndex = blot ? editor.getIndex(blot) : null; } catch (e) { MOVE.originalIndex = null; }
+
+    if (!MOVE.ghost) MOVE.ghost = createGhost(MOVE.activeFig);
+    MOVE.ghost.style.left = (ev.clientX || MOVE.lastClientX || 0) + 'px';
+    MOVE.ghost.style.top = (ev.clientY || MOVE.lastClientY || 0) + 'px';
+
+    MOVE.activeFig.style.visibility = 'hidden';
+    MOVE.activeFig.classList.remove('dragging');
+
+    MOVE.activeFig.style.position = MOVE.originalPosition.position || '';
+    MOVE.activeFig.style.left = MOVE.originalPosition.left || '';
+    MOVE.activeFig.style.top = MOVE.originalPosition.top || '';
+    MOVE.activeFig.style.zIndex = MOVE.originalPosition.zIndex || '';
+
+    MOVE.mode = MODE.VERTICAL;
+    try { editor.disable(); } catch (err) {}
+    try {
+      MOVE.lastClientX = ev.clientX || MOVE.lastClientX;
+      MOVE.lastClientY = ev.clientY || MOVE.lastClientY;
+      showOverlayMarkerAt(MOVE.lastClientX, MOVE.lastClientY);
+    } catch (err) {}
+  }
+
+  // expose helpers for debugging (optional)
+  if (DEBUG) window.__figureMoveDebug = { MOVE, computeDropIndexFromPoint, findSafeDropIndex };
+
+  log('improved-figure-drag initialized');
 })();
 
     /* ---------------------------
@@ -2425,3 +2912,4 @@ Quill.register(FigureBlot);
   </script>
 </body>
 </html>
+
