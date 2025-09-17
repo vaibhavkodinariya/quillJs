@@ -783,7 +783,10 @@ figure.custom-figure[style*="position: absolute"] {
     Icons['hr'] = `<svg viewBox="0 0 24 24" width="16" height="16">
   <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
-
+    Icons['source'] = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 7.5L4 12l4.5 4.5"></path>
+    <path d="M15.5 7.5L20 12l-4.5 4.5"></path>
+  </svg>`;
     if (window.QuillTableBetter) Quill.register({ 'modules/table-better': QuillTableBetter }, true);
 
     /* ---------------------------
@@ -2452,5 +2455,6 @@ Quill.register(FigureBlot);
   </script>
 </body>
 </html>
+
 
 
